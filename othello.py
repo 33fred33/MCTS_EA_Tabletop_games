@@ -3,8 +3,9 @@ import board_2d as b2d
 import operator
 import random as rd
 from enum import Enum, auto
-from typing import List
+from typing import List, Tuple
 from dataclasses import dataclass
+import pygame
 
 #Game Othello
 
@@ -23,25 +24,26 @@ class Players(Enum):
 @dataclass
 class Action():
     
-    location : b2d.Location
+    coordinates : Tuple[int]
     content : Players
-    swaps : List[b2d.Location]
+    swaps : List[Tuple[int]]
 
     def __str__(self):
-        return str(self.content) + ", " + str(self.location.coordinates) + ", swaps:" + str(len(self.swaps))
+        return str(self.content) + ", " + str(self.coordinates) + ", swaps:" + str(len(self.swaps))
 
 class GameState():
 
     player_turn : Players
     ply : int
     board : b2d.Board
+    content_name : str = "P"
 
     def __init__(self):
         pass
     
     def set_initial_state(self, width=8, height=8) -> None:
 
-        self.board = b2d.Board()
+        self.board = b2d.Board(x_min=0, x_max=width, y_min=0, y_max=height )
         for x in (int(width/2)-1, int(width/2)):
             for y in (int(height/2)-1, int(height/2)):
                 if (x+y)%2==0: 
@@ -53,10 +55,7 @@ class GameState():
                 self.board.fill_location(location)
 
         for location in self.board.filled_locations.values():
-            for direction in b2d.Directions:
-                adjacent_coordinate = location.surrounding_coordinates[direction]
-                if adjacent_coordinate not in self.board.filled_locations and adjacent_coordinate not in self.board.available_locations:
-                    self.board.make_location_available(adjacent_coordinate[0], adjacent_coordinate[1])
+            self._find_new_available_locations(location)
         
         self.ply = 0
         self.player_turn = Players.PLAYER1
@@ -67,7 +66,7 @@ class GameState():
         for direction in b2d.Directions:
             adjacent_coordinate = location.surrounding_coordinates[direction]
             if adjacent_coordinate in self.board.filled_locations:
-                if self.board.filled_locations[adjacent_coordinate].content["P"] != self.player_turn:
+                if self.board.filled_locations[adjacent_coordinate].content[self.content_name] != self.player_turn:
                     enemy_directions.append(direction)
 
         return enemy_directions
@@ -81,7 +80,7 @@ class GameState():
             else:
                 outflanked, locations = self._get_outflanked_locations(next_location, direction, content_to_stop)
                 if outflanked:
-                    outflanked_locations = outflanked_locations + [next_location]
+                    outflanked_locations = outflanked_locations + [next_location.coordinates]
                 else:
                     outflanked_locations = []
         return outflanked, outflanked_locations
@@ -98,10 +97,34 @@ class GameState():
                 _, outflanked_locations = self._get_outflanked_locations(location, direction, self.player_turn)
                 swaps = swaps + outflanked_locations
             if len(swaps) > 0: 
-                actions.append(Action(location = location, content = self.player_turn, swaps = swaps))
+                actions.append(Action(coordinates = location.coordinates, content = self.player_turn, swaps = swaps))
             
         return actions
 
+    def _find_new_available_locations(self, location) -> None:
+
+        for direction in b2d.Directions:
+            adjacent_coordinate = location.surrounding_coordinates[direction]
+            if adjacent_coordinate not in self.board.filled_locations and adjacent_coordinate not in self.board.available_locations:
+                self.board.make_location_available(adjacent_coordinate[0], adjacent_coordinate[1])
+
+    def make_action(self, action) -> None:
+        
+        location = self.board.available_locations[action.coordinates]
+        self.board.fill_location(location)
+        location.update_content({self.content_name : action.content})
+        self._find_new_available_locations(location)
+
+        #Swaps
+        for swap_coordinate in action.swaps:
+            location_to_swap = self.board.filled_locations[swap_coordinate]
+            new_content = location_to_swap.content[self.content_name].succ()
+            location_to_swap.update_content({self.content_name:new_content})
+        
+        print(str([l for l in self.board.available_locations.keys()]))
+        self.ply = self.ply + 1
+        self.player_turn = self.player_turn.succ()
+        
     def duplicate(self):
 
         the_duplicate = GameState()

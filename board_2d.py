@@ -129,6 +129,7 @@ orthogonal_directions = (Directions.DIR0, Directions.DIR90, Directions.DIR180, D
 diagonal_directions = (Directions.DIR45, Directions.DIR135, Directions.DIR225, Directions.DIR315)
 
 class Location():
+    
     def __init__(self, x, y):
         self.x = x
         self.y = y
@@ -177,11 +178,13 @@ class Board():
 
     filled_locations : dict
     available_locations : dict  
+    limits : dict
 
-    def __init__(self):
+    def __init__(self, x_min=-np.inf, x_max=np.inf, y_min=-np.inf, y_max=np.inf):
 
         self.filled_locations = {} #Keys are tuples of ints (coordinates)
-        self.available_locations = {}            
+        self.available_locations = {}
+        self.limits = {"x-":x_min, "x+":x_max, "y-":y_min, "y+":y_max}           
 
     def create_empty_squared_board(self, width, height, start_x=0, start_y=0) -> None:
 
@@ -208,9 +211,11 @@ class Board():
             x: (int)
             y: (int)
         """
-        new_loc = Location(x,y)
-        self.available_locations[(x,y)] = new_loc
-        return new_loc
+        if x >= self.limits["x-"] and x <= self.limits["x+"] and y >= self.limits["y-"] and y <= self.limits["y+"]:
+            new_loc = Location(x,y)
+            self.available_locations[(x,y)] = new_loc
+            return new_loc
+        return None
 
     def duplicate(self):
         """
@@ -227,3 +232,8 @@ class Board():
 
         return the_duplicate
 
+    def __str__(self):
+        string = "Board: "
+        for coordinates, location in self.filled_locations.items():
+            string = string + str(coordinates) + str(location.content)
+        return string
