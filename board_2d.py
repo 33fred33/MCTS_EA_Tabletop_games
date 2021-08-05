@@ -229,6 +229,7 @@ class Board():
         #Creating independent copies of every relevant variable in the class
         the_duplicate.available_locations = {k:v.duplicate() for k,v in self.available_locations.items()}
         the_duplicate.filled_locations = {k:v.duplicate() for k,v in self.filled_locations.items()}
+        the_duplicate.limits = {k:v for k,v in self.limits.items()}
 
         return the_duplicate
 

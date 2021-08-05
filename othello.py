@@ -28,6 +28,9 @@ class Action():
     content : Players
     swaps : List[Tuple[int]]
 
+    def duplicate(self):
+        return Action(self.coordinates, self.content, [x for x in self.swaps])
+
     def __str__(self):
         return str(self.content) + ", " + str(self.coordinates) + ", swaps:" + str(len(self.swaps))
 
@@ -37,13 +40,18 @@ class GameState():
     ply : int
     board : b2d.Board
     content_name : str = "P"
+    width : int
+    height : int
+    available_actions : List[Action]
 
     def __init__(self):
-        pass
+        self.available_actions = []
     
     def set_initial_state(self, width=8, height=8) -> None:
 
-        self.board = b2d.Board(x_min=0, x_max=width, y_min=0, y_max=height )
+        self.width = width
+        self.height = height
+        self.board = b2d.Board(x_min=0, x_max=width-1, y_min=0, y_max=height-1)
         for x in (int(width/2)-1, int(width/2)):
             for y in (int(height/2)-1, int(height/2)):
                 if (x+y)%2==0: 
@@ -59,6 +67,7 @@ class GameState():
         
         self.ply = 0
         self.player_turn = Players.PLAYER1
+        self.available_actions = self._get_available_actions()
 
     def _get_enemy_directions(self, location) -> List[b2d.Directions]:
 
@@ -85,7 +94,7 @@ class GameState():
                     outflanked_locations = []
         return outflanked, outflanked_locations
 
-    def get_available_actions(self) -> List[Action]:
+    def _get_available_actions(self) -> List[Action]:
 
         actions = []
         for location in self.board.available_locations.values():
@@ -121,13 +130,66 @@ class GameState():
             new_content = location_to_swap.content[self.content_name].succ()
             location_to_swap.update_content({self.content_name:new_content})
         
-        print(str([l for l in self.board.available_locations.keys()]))
-        self.ply = self.ply + 1
         self.player_turn = self.player_turn.succ()
+        self.available_actions = self._get_available_actions()
+        if len(self.available_actions) > 0:
+            self.ply = self.ply + 1
+        else: 
+            if len(self.board.available_locations) > 0:
+                self.player_turn = self.player_turn.succ()
+                self.available_actions = self._get_available_actions()
         
+    def view_game_state(self) -> None:
+        top_string = "   " + "-"*(self.width*2 + 2)
+        print(top_string)
+        for y in reversed(range(self.height)):
+            string = f"{y} |"
+            for x in range(self.width):
+                coordinates = (x,y)
+                if coordinates in self.board.filled_locations:
+                    filling = self.board.filled_locations[coordinates].content[self.content_name]
+                    if filling == Players.PLAYER1:
+                        string += " X"
+                    else: string += " O"
+                else:
+                    string += " ."
+            print(string + " |")
+        print(top_string)
+        last_string = "    "
+        for x in range(self.width): last_string += f"{x} "
+        print(last_string)
+
+    def is_terminal(self) -> bool:
+
+        if len(self.board.available_locations) == 0:
+            return True
+        elif len(self.available_actions) == 0:
+            return True
+        return False
+
+    def winner(self) -> Players:
+
+        if not self.is_terminal():
+            return None
+        else:
+            scores = self.scores()
+            return max(scores, key=scores.get)
+
+    def scores(self):
+
+        scores = {p:0 for p in Players}
+        for location in self.board.filled_locations.values():
+            scores[location.content[self.content_name]] += 1
+        return scores
+
     def duplicate(self):
 
         the_duplicate = GameState()
         the_duplicate.player_turn = self.player_turn
         the_duplicate.ply = self.ply
         the_duplicate.board = self.board.duplicate()
+        the_duplicate.content_name = self.content_name
+        the_duplicate.width = self.width
+        the_duplicate.height = self.height
+        the_duplicate.available_actions = [a.duplicate() for a in self.available_actions]
+        return the_duplicate
