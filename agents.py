@@ -69,15 +69,15 @@ class Node():
 
 class RandomPlayer(game.Agent):
     
-    player : game.Players = None
+    player : int = 0
 
     def choose_action(self, state): #game interface dependencies
-        return rd.choice(self.state.available_actions)
+        return rd.choice(state.available_actions)
 
 class MCTS_Player(game.Agent):
 
     root_node : Node
-    player : game.Players
+    player : int = 0
 
     def __init__(self, rollouts, c, max_fm=np.inf, max_time=10, max_simulations=np.inf):
 
@@ -128,7 +128,7 @@ class MCTS_Player(game.Agent):
     def map_reward(self, winner, win = 1, lose = -1, draw = 0):
         if winner == self.player:
             return win
-        elif winner == self.player.succ():
+        elif winner == game.next_player(self.player):
             return lose
         else:
             return draw
@@ -145,7 +145,7 @@ class MCTS_Player(game.Agent):
         self.current_fm = self.current_fm + 1
         return node
 
-    def simulation(self, agent, node) -> game.Players: #game interface dependencies
+    def simulation(self, agent, node) -> int: #game interface dependencies
 
         state = node.state.duplicate()
         while not state.is_terminal():

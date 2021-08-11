@@ -1,17 +1,9 @@
 from abc import ABC, abstractmethod
 from enum import Enum, auto
 
-class Players(Enum):
 
-    PLAYER1 = auto()
-    PLAYER2 = auto()
-    
-    def succ(self):
-
-        if self == Players.PLAYER1:
-            return Players.PLAYER2
-        else:
-            return Players.PLAYER1
+def next_player(player_id):
+    return 1-player_id
 
 class BaseGameState(ABC):
 
@@ -35,18 +27,13 @@ class BaseGameState(ABC):
     def available_actions(self):
         raise NotImplementedError
 
-    @property
-    @abstractmethod 
-    def make_action_calls(self):
-        raise NotImplementedError
-
+    #"""
     @property
     @abstractmethod 
     def player_turn(self):
         raise NotImplementedError
-
-        
-
+    #"""
+  
 class BaseAction(ABC):
 
     @abstractmethod 
@@ -61,3 +48,8 @@ class Agent(ABC):
     @abstractmethod 
     def player(self):
         raise NotImplementedError
+
+#def fast_game(agent1, agent2, game_state) -> winner:
+    
+#    while not game_state.is_terminal():
+#        if game_state.player_turn == Players.PLAYER1
