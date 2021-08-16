@@ -10,8 +10,10 @@ class BaseGameState(ABC):
     @abstractmethod 
     def make_action(self, action): pass
 
+    @property
     @abstractmethod 
-    def is_terminal(self): pass
+    def is_terminal(self):
+        raise NotImplementedError
 
     @abstractmethod
     def duplicate(self): pass
