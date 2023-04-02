@@ -1,16 +1,15 @@
 from collections import defaultdict
-import board_2d as b2d
+import Games.board_2d as b2d
 import operator
 import random as rd
 from typing import List, Tuple
 from dataclasses import dataclass
-import pygame
-import game
+import Games.base_games as base_games
 
 #Game Othello
 
 @dataclass
-class Action(game.BaseAction):
+class Action(base_games.BaseAction):
     
     coordinates : Tuple[int]
     content : int
@@ -31,7 +30,7 @@ class Action(game.BaseAction):
     def __ne__(self, other):
         return not(self == other)
 
-class GameState(game.BaseGameState):
+class GameState(base_games.BaseGameState):
 
     
     ply : int
@@ -117,17 +116,17 @@ class GameState(game.BaseGameState):
         #Swaps
         for swap_coordinate in action.swaps:
             location_to_swap = self.board.filled_locations[swap_coordinate]
-            new_content = game.next_player(location_to_swap.content[self.content_name])
+            new_content = base_games.next_player(location_to_swap.content[self.content_name])
             location_to_swap.update_content({self.content_name:new_content})
         
         #Variables update
-        self.player_turn = game.next_player(self.player_turn)
+        self.player_turn = base_games.next_player(self.player_turn)
         self.available_actions = self._get_available_actions()
         if len(self.available_actions) > 0:
             self.ply = self.ply + 1
         else: 
             if len(self.board.available_locations) > 0:
-                self.player_turn = game.next_player(self.player_turn)
+                self.player_turn = base_games.next_player(self.player_turn)
                 self.available_actions = self._get_available_actions()
         
     def view_game_state(self) -> None:

@@ -6,20 +6,20 @@ import math
 import numpy as np
 import random as rd
 import time
-import game
+import Games.base_games as base_games
 
 class Node():
 
-    def __init__(self, state, parent = None):
+    def __init__(self, state=None, parent = None):
         self.parent = parent
-        self.state = state
+        self.state = state #Saving states accelerates iterations but increases memory usage
 
         self.visits = 0
         self.reward = 0
         self.children = {}
         
     def is_leaf(self):
-        return len(children) == 0
+        return len(self.children) == 0
 
     def UCB(self, c = math.sqrt(2)):
 
@@ -67,14 +67,9 @@ class Node():
     def __ne__(self, other):
         return not(self == other)
 
-class RandomPlayer(game.Agent):
-    
-    player : int = 0
 
-    def choose_action(self, state): #game interface dependencies
-        return rd.choice(state.available_actions)
 
-class MCTS_Player(game.Agent):
+class MCTS_Player(base_games.Agent):
 
     root_node : Node
     player : int = 0
@@ -128,7 +123,7 @@ class MCTS_Player(game.Agent):
     def map_reward(self, winner, win = 1, lose = -1, draw = 0):
         if winner == self.player:
             return win
-        elif winner == game.next_player(self.player):
+        elif winner == base_games.next_player(self.player):
             return lose
         else:
             return draw
