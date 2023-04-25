@@ -1,5 +1,6 @@
 from typing import Protocol
 from enum import Enum, auto
+from typing import List
 
 class BaseGameState(Protocol):
 
@@ -13,9 +14,5 @@ class BaseGameState(Protocol):
 
     def winner(self) -> int: raise NotImplementedError
 
-    available_actions:dict
-    player_turn:int
-
-class BaseAction(Protocol):
-    
-    index: int
+    available_actions: List #List[Action]
+    player_turn:int 

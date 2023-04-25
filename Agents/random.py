@@ -5,4 +5,4 @@ class RandomPlayer():
     player : int = 0
 
     def choose_action(self, state): #game interface dependencies
-        return rd.choice(list(state.available_actions.values()))
+        return rd.choice(state.available_actions)
