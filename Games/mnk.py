@@ -14,6 +14,9 @@ class Action():
         self.x = x
         self.y = y
 
+    def __str__(self):
+        return f"(x{self.x},y{self.y},t{self.player_index})"
+    
     def __members(self):
         return (self.x, self.y, self.player_index)
     
@@ -113,7 +116,7 @@ class GameState(base_games.BaseGameState):
         #Verify move validity
         assert self.is_terminal == False
         assert action.player_index == self.player_turn
-        assert self.board[(action.x, action.y)] is None
+        assert self.board[(action.x, action.y)] is None, "Invalid move:" + str(action)
 
         #Update board
         board_key = (action.x, action.y)
@@ -139,6 +142,7 @@ class GameState(base_games.BaseGameState):
             if len(self.available_actions) == 1:
                 self.is_terminal = True
                 self.winner = None
+                self.available_actions = []
             else: 
                 #Turn swap
                 self.player_turn = 1 - self.player_turn

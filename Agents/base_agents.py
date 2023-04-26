@@ -6,4 +6,5 @@ from Games.base_games import BaseGameState
 
 class BaseAgent(Protocol):
 
+    name : str
     def choose_action(self, state: BaseGameState) -> None: raise NotImplementedError
