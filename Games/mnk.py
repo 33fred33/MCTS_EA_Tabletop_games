@@ -39,34 +39,16 @@ class GameState(base_games.BaseGameState):
     direction_pairs = [["up","down"],["left","right"],["up_left","down_right"],["up_right","down_left"]]
 
     def __init__(self, m=13, n=13, k=5,
-                 turn=None,
-                 board={}, 
-                 _available_actions=[{},{}],
-                 available_actions={}, 
-                 player_turn=None, 
-                 is_terminal=False, 
-                 winner=None,
-                 score = [None,None],
-                 board_connections={},
                  losing_score=-1,
                  draw_score=0,
                  winning_score=1):
+        assert m >= 3, "m must be >= 3"
+        assert n >= 3, "n must be >= 3"
+        assert k >= 3 and (k <= m or k <= n), "k must be >= 3 and < m or n"
         self.m = m
         self.n = n 
         self.k = k
-        self.board = board
-
-        #supporting variable to speed up the games
-        self._available_actions = _available_actions
-
-        self.available_actions = available_actions
-        self.player_turn = player_turn
-        self.is_terminal = is_terminal
-        self.winner = winner
-        self.score = score
-        self.board_connections = board_connections
-        self.turn = turn
-        self.loosing_score = losing_score
+        self.losing_score = losing_score
         self.draw_score = draw_score
         self.winning_score = winning_score
 
@@ -76,7 +58,8 @@ class GameState(base_games.BaseGameState):
         self.turn = 1
         self.player_turn = 0
         self.is_terminal = False
-        self.score = [self.draw_score,self.draw_score]
+        self.score = [None,None]
+        self.winner = None
 
         #Initialise board
         self.board = {}
@@ -169,7 +152,7 @@ class GameState(base_games.BaseGameState):
             self.score = [self.draw_score,self.draw_score]
         else:
             self.score[winner] = self.winning_score
-            self.score[1-winner] = self.loosing_score
+            self.score[1-winner] = self.losing_score
 
     def view_game_state(self):
         temp_board = np.full((self.m, self.n), " ")
@@ -180,16 +163,26 @@ class GameState(base_games.BaseGameState):
         print(temp_board)
 
     def duplicate(self):
-        the_duplicate = GameState(self.m, self.n, self.k, 
-                                  turn = self.turn,
-                                  winner = self.winner, 
-                                  score = [s for s in self.score],
-                                  player_turn = self.player_turn, 
-                                  _available_actions = [{c:v for c,v in self._available_actions[0].items()}, {c:v for c,v in self._available_actions[1].items()}],
-                                  available_actions = [a for a in self.available_actions], 
-                                  board = {c:v for c,v in self.board.items()},
-                                  board_connections=self.board_connections)
+        the_duplicate = GameState(m=self.m, 
+                                  n=self.n,
+                                  k=self.k, 
+                                  losing_score = self.losing_score, 
+                                  draw_score = self.draw_score, 
+                                  winning_score = self.winning_score)
+        the_duplicate.turn = self.turn
+        the_duplicate.winner = self.winner
+        the_duplicate.score = [s for s in self.score]
+        the_duplicate.player_turn = self.player_turn
+        the_duplicate._available_actions = [{c:v for c,v in self._available_actions[0].items()}, {c:v for c,v in self._available_actions[1].items()}]
+        the_duplicate.available_actions = [a for a in self.available_actions]
+        the_duplicate.board = {c:v for c,v in self.board.items()}
+        the_duplicate.board_connections=self.board_connections
         return the_duplicate
-    
+
+    def feature_vector(self):
+        fv = {k:v for k,v in self.board.items()}
+        fv["player_turn"] = self.player_turn
+        return fv
+
     def __repr__(self):
-        return "m"+str(self.m)+"n"+str(self.n) +"k"+str(self.k) +"terminal"+str(self.is_terminal) +"winner"+str(self.winner) + "player_turn" +str(self.player_turn) + "available_actions" + str(len(self.available_actions))
+        return str(self.feature_vector())
