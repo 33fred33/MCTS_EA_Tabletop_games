@@ -16,3 +16,4 @@ class BaseGameState(Protocol):
 
     available_actions: List #List[Action]
     player_turn:int 
+    score:List[float]

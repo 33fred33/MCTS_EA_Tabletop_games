@@ -54,7 +54,7 @@ class MCTS_Player(BaseAgent):
     root_node : Node
     player : int = 0
 
-    def __init__(self, rollouts, c, max_fm=np.inf, max_time=np.inf, max_iterations=np.inf, default_policy = RandomPlayer(), name = "Vanilla_MCTS"):
+    def __init__(self, rollouts=1, c=math.sqrt(2), max_fm=np.inf, max_time=np.inf, max_iterations=np.inf, default_policy = RandomPlayer(), name = "Vanilla_MCTS", logs = False):
         assert max_fm != np.inf or max_time != np.inf or max_iterations != np.inf, "At least one of the stopping criteria must be set"
         self.rollouts = rollouts
         self.c = c
@@ -67,6 +67,7 @@ class MCTS_Player(BaseAgent):
         self.nodes_count = 0
         self.default_policy = default_policy
         self.name = name
+        self.logs = logs
 
     def choose_action(self, state):
 
@@ -144,7 +145,7 @@ class MCTS_Player(BaseAgent):
             while not state.is_terminal:
                 state.make_action(default_policy.choose_action(state))
                 self.current_fm = self.current_fm + 1
-            reward = reward + self.map_reward(state.winner)
+            reward = reward + state.score[self.player] #self.map_reward(state.winner)
         average_reward = reward / self.rollouts
         return average_reward
 

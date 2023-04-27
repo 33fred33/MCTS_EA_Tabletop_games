@@ -34,7 +34,8 @@ class GameState(base_games.BaseGameState):
     winner : int = None
     is_terminal : bool = False
     player_turn : int = 0
-    available_actions = []
+    available_actions : List[Action] = []
+    score : List[float]
     direction_pairs = [["up","down"],["left","right"],["up_left","down_right"],["up_right","down_left"]]
 
     def __init__(self, m=13, n=13, k=5,
@@ -45,7 +46,11 @@ class GameState(base_games.BaseGameState):
                  player_turn=None, 
                  is_terminal=False, 
                  winner=None,
-                 board_connections={}):
+                 score = [None,None],
+                 board_connections={},
+                 losing_score=-1,
+                 draw_score=0,
+                 winning_score=1):
         self.m = m
         self.n = n 
         self.k = k
@@ -58,8 +63,12 @@ class GameState(base_games.BaseGameState):
         self.player_turn = player_turn
         self.is_terminal = is_terminal
         self.winner = winner
+        self.score = score
         self.board_connections = board_connections
         self.turn = turn
+        self.loosing_score = losing_score
+        self.draw_score = draw_score
+        self.winning_score = winning_score
 
     def set_initial_state(self):
         
@@ -67,6 +76,7 @@ class GameState(base_games.BaseGameState):
         self.turn = 1
         self.player_turn = 0
         self.is_terminal = False
+        self.score = [self.draw_score,self.draw_score]
 
         #Initialise board
         self.board = {}
@@ -133,16 +143,13 @@ class GameState(base_games.BaseGameState):
                     line_count += 1
                     if line_count==self.k:
                         self.is_terminal = True
-                        self.winner = self.player_turn
                         break
                     current_board_key = self.board_connections[current_board_key][direction]
 
         if not self.is_terminal: 
             #Update available actions
             if len(self.available_actions) == 1:
-                self.is_terminal = True
-                self.winner = None
-                self.available_actions = []
+                self._game_end(winner=None)
             else: 
                 #Turn swap
                 self.player_turn = 1 - self.player_turn
@@ -152,8 +159,18 @@ class GameState(base_games.BaseGameState):
                 self.turn = self.turn + 1
         
         else:
-            self.available_actions = []
-        
+            self._game_end(winner=self.player_turn)
+
+    def _game_end(self, winner):
+        self.is_terminal = True
+        self.winner = winner
+        self.available_actions = []
+        if winner is None:
+            self.score = [self.draw_score,self.draw_score]
+        else:
+            self.score[winner] = self.winning_score
+            self.score[1-winner] = self.loosing_score
+
     def view_game_state(self):
         temp_board = np.full((self.m, self.n), " ")
         for x in range(self.m):
@@ -166,6 +183,7 @@ class GameState(base_games.BaseGameState):
         the_duplicate = GameState(self.m, self.n, self.k, 
                                   turn = self.turn,
                                   winner = self.winner, 
+                                  score = [s for s in self.score],
                                   player_turn = self.player_turn, 
                                   _available_actions = [{c:v for c,v in self._available_actions[0].items()}, {c:v for c,v in self._available_actions[1].items()}],
                                   available_actions = [a for a in self.available_actions], 
