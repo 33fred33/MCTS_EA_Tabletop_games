@@ -16,10 +16,13 @@ def play_game(gs, players, random_seed = None, logs = False):
 
     #Set random seed
     if random_seed is not None: rd.seed(random_seed)
-    else: random_seed = rd.randint(0, 2**32)
+    else: 
+        random_seed = rd.randint(0, 2**32)
+        rd.seed(random_seed)
 
     #Set logs
-    df_logs = pd.DataFrame(columns=["player","player_turn", "chosen_action", "turn", "had_n_options", "time","random_seed"])
+    acion_logs = pd.DataFrame(columns=["Player", "Chosen_action", "Time"])
+    game_logs = pd.DataFrame()
 
     #Play game
     while not gs.is_terminal:
@@ -30,17 +33,29 @@ def play_game(gs, players, random_seed = None, logs = False):
         #Update logs
         if logs:
             #ref: https://stackoverflow.com/questions/24284342/insert-a-row-to-pandas-dataframe
-            df_logs = pd.concat([df_logs, pd.DataFrame([[
+            acion_logs = pd.concat([acion_logs, pd.DataFrame([[
                 str(players[gs.player_turn]),       #player
-                gs.player_turn,                     #"player_index"
                 str(action),                        #"chosen_action"
-                gs.turn,                            #"turn":
-                len(gs.available_actions),          #"had_n_options":
                 selection_time,                      #"time":
-                random_seed                         #"random_seed"
-            ]], columns=df_logs.columns)], ignore_index=True)
+            ]], columns=acion_logs.columns)], ignore_index=True)
+            game_logs = pd.concat([game_logs, gs.logs_data()], ignore_index=True)
 
-        #Make action
+        #Make action    
         gs.make_action(action)
+
+    if logs:
+        #Final logs by action
+        final_logs_by_action = pd.concat([acion_logs, game_logs], axis=1)
+
+        #Final logs by game
+        final_logs_by_game_dict = {}
+        for i, player in enumerate(players):
+            final_logs_by_game_dict["Player_" + str(i)] = str(player)
+        final_logs_by_game_dict["Random_seed"] = random_seed
+        final_logs_by_game = pd.DataFrame(final_logs_by_game_dict, index=[0])
+        final_logs_by_game = pd.concat([final_logs_by_game, gs.logs_data()], axis=1)
         
-    return gs, df_logs
+        return gs, {"by_game": final_logs_by_game, "by_action":final_logs_by_action}
+    
+    else:
+        return gs, {}

@@ -64,6 +64,15 @@ def produce_game(name):
     state.set_initial_state()
     return state
 
+def test_mcts_tree(iterations=20, game_name = "mnk", agent_name = "mcts"):
+    state = produce_game(game_name)
+    agent = produce_agent(agent_name)
+    agent.max_iterations = -1
+    _ = agent.choose_action(state)
+    for _ in range(iterations):
+        agent.iteration(agent.root_node)
+    print(agent.view_mcts_tree())
+
 def run():
     #Database
     game_names = ["mnk", "fo1d1p", "fo1d2p", "fo2d1p", "fo2d2p"]
@@ -84,8 +93,10 @@ def run():
     #Test experiment_utils
     print("Experiment utils tests running")
     state = produce_game("mnk")
-    state, logs = eu.play_game(state, [produce_agent(agent_names[0]),produce_agent(agent_names[0])])
+    state, logs = eu.play_game(state, [produce_agent(agent_names[0]),produce_agent(agent_names[0])], logs=True)
     assert state.is_terminal, "Game did not end with random agents"
+    logs_breakdown = [str(key) +":"+ str(val.shape) for key, val in logs.items()]
+    print("Play_game logs:" + str(logs_breakdown))
     print("Experiment utils tests passed")
 
 

@@ -1,7 +1,7 @@
 from pandas import DataFrame
 import os
 
-def dump_data(self, data:DataFrame, file_path:str) -> DataFrame:
+def dump_data(data:DataFrame, file_path:str) -> DataFrame:
    """
    Stores the data in a csv file and returns an emptied DataFrame with the same columns as "data"
    File path should be full path: any/file.csv

@@ -1,7 +1,7 @@
 from typing import List, Tuple
 import numpy as np
 import Games.base_games as base_games
-
+import pandas as pd
 
 class Action():
 
@@ -181,8 +181,16 @@ class GameState(base_games.BaseGameState):
 
     def feature_vector(self):
         fv = {k:v for k,v in self.board.items()}
-        fv["player_turn"] = self.player_turn
         return fv
+
+    def logs_data(self):
+        data = self.feature_vector()#{k:[v] for k,v in self.feature_vector().items()}
+        for i, player_score in enumerate(self.score):
+            data["Score_p"+str(i)] = player_score
+        data["Turn"] = self.turn
+        data["Winner"] = self.winner
+        data["N_available_actions"] = len(self.available_actions)
+        return pd.DataFrame(data, index=[0])
 
     def __repr__(self):
         return str(self.feature_vector())

@@ -4,6 +4,7 @@ from scipy.stats import bernoulli
 import numpy as np
 import math
 from typing import List
+import pandas as pd
 
 import Games.base_games as base_games
 
@@ -188,14 +189,24 @@ class GameState(base_games.BaseGameState):
         for i,ac in enumerate(available_combinations):
             self.available_actions[i] = Action(self.player_turn, [[x for x in d] for d in ac])
         #print([str(a) for a in self.available_actions])
-        
+
     def feature_vector(self):
-        """Features: turn, player turn, ranges0, ranges1"""
-        features = {"Turn":self.turn, "Player_symbol":self.player_turn}
+        """Features: player turn, ranges0, ranges1"""
+        features = {"Player_symbol":self.player_turn}
         for d in range(len(self.ranges)):
-            features["dimension"+str(d) + "_start"] = self.ranges[d][0]
-            features["dimension"+str(d) + "_end"] = self.ranges[d][1]
+            features["Dimension"+str(d) + "_start"] = self.ranges[d][0]
+            features["Dimension"+str(d) + "_end"] = self.ranges[d][1]
         return features
+    
+    def logs_data(self):
+        data = self.feature_vector()
+        for i, player_score in enumerate(self.score):
+            data["Score_p"+str(i)] = player_score
+        data["Turn"] = self.turn
+        data["Winner"] = self.winner
+        data["Eval_point"] = self.eval_point()
+        data["N_available_actions"] = len(self.available_actions)
+        return pd.DataFrame(data, index=[0])
 
     def __repr__(self):
       return str(self.feature_vector())

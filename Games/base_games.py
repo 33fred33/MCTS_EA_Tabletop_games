@@ -17,6 +17,6 @@ class BaseGameState(Protocol):
     def feature_vector(self) -> List: raise NotImplementedError
 
     available_actions: List #List[Action]
-    player_turn:int 
+    player_turn:int #begins in 0, ends in n_players-1
     score:List[float] #Default:None. Updated to reflect the final score
     turn:int #begins in 1
