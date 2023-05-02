@@ -18,7 +18,7 @@ class Node():
 
         self.visits = 0
         self.total_reward = 0
-        self.children = {}
+        self.children = {} #action:node
 
     def can_be_expanded(self):
         return len(self.state.available_actions) > len(self.children) and len(self.state.available_actions) > 0 and not self.state.is_terminal
@@ -136,7 +136,7 @@ class MCTS_Player(BaseAgent):
 
         #State was terminal
         if node.state.is_terminal:
-            return self.map_reward(node.state.winner)
+            return state.score[self.player] #change to score
 
         #Execute simulations
         reward = 0
@@ -145,7 +145,7 @@ class MCTS_Player(BaseAgent):
             while not state.is_terminal:
                 state.make_action(default_policy.choose_action(state))
                 self.current_fm = self.current_fm + 1
-            reward = reward + state.score[self.player] #self.map_reward(state.winner)
+            reward = reward + state.score[self.player]
         average_reward = reward / self.rollouts
         return average_reward
 
@@ -155,14 +155,6 @@ class MCTS_Player(BaseAgent):
             node.update(reward)
             node = node.parent
         node.update(reward)
-    
-    def map_reward(self, winner, win = 1, lose = -1, draw = 0):
-        if winner == self.player:
-            return win
-        elif winner is None:
-            return draw
-        else:
-            return lose
         
     def UCB1(self, node, c = math.sqrt(2)):
         if node.visits == 0:

@@ -93,10 +93,11 @@ def run():
     #Test experiment_utils
     print("Experiment utils tests running")
     state = produce_game("mnk")
-    state, logs = eu.play_game(state, [produce_agent(agent_names[0]),produce_agent(agent_names[0])], logs=True)
-    assert state.is_terminal, "Game did not end with random agents"
-    logs_breakdown = [str(key) +":"+ str(val.shape) for key, val in logs.items()]
-    print("Play_game logs:" + str(logs_breakdown))
+    test_game_player = eu.GamePlayer(state, [produce_agent(agent_names[0]),produce_agent(agent_names[0])])
+    test_game_player.play_game()
+    test_game_player.play_games(n_games=4)
+    print("Play_game logs:")
+    print(test_game_player.logs_by_game)
     print("Experiment utils tests passed")
 
 
