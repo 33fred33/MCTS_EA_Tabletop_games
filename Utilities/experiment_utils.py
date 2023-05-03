@@ -33,7 +33,7 @@ class GamePlayer():
             rd.seed(random_seed)
 
         #Set logs
-        acion_logs = pd.DataFrame(columns=["Player", "Chosen_action", "Time", "Game_index"])
+        action_logs = pd.DataFrame(columns=["Player", "Chosen_action", "Time", "Game_index"])
         game_logs = pd.DataFrame()
 
         #Play game
@@ -45,12 +45,12 @@ class GamePlayer():
             #Update logs
             if logs:
                 #ref: https://stackoverflow.com/questions/24284342/insert-a-row-to-pandas-dataframe
-                acion_logs = pd.concat([acion_logs, pd.DataFrame([[
+                action_logs = pd.concat([action_logs, pd.DataFrame([[
                     str(self.players[gs.player_turn]),       #player
                     str(action),                        #"chosen_action"
                     selection_time,                      #"time"
                     self.games_count                   #"game_index"
-                ]], columns=acion_logs.columns)], ignore_index=True)
+                ]], columns=action_logs.columns)], ignore_index=True)
                 game_logs = pd.concat([game_logs, gs.logs_data()], ignore_index=True)
 
             #Make action    
@@ -58,7 +58,7 @@ class GamePlayer():
 
         if logs:
             #Final logs by action
-            final_logs_by_action = pd.concat([acion_logs, game_logs], axis=1)
+            final_logs_by_action = pd.concat([action_logs, game_logs], axis=1)
 
             #Final logs by game
             final_logs_by_game_dict = {}

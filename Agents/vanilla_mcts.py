@@ -7,6 +7,7 @@ import math
 import numpy as np
 import random as rd
 import time
+import pandas as pd
 
 class Node():
 
@@ -39,6 +40,9 @@ class Node():
         return "edge_action:" + str(self.edge_action) + ", visits:" + str(self.visits) + ", avg_reward:" + "{0:.3g}".format(self.total_reward/self.visits) + ", children:" + str(len(self.children))
 
     def __eq__(self, other):
+        if other is None:
+            #print("Warning: comparing node to None")
+            return False
         return other.state == self.state
 
     def __hash__(self):
@@ -68,6 +72,7 @@ class MCTS_Player(BaseAgent):
         self.default_policy = default_policy
         self.name = name
         self.logs = logs
+        self.choose_action_logs = pd.DataFrame()
 
     def choose_action(self, state):
 
@@ -84,7 +89,7 @@ class MCTS_Player(BaseAgent):
 
             #Update criteria
             self.current_iterations = self.current_iterations + 1
-            self.current_time = start_time - time.time()
+            self.current_time = time.time() - start_time
 
         if len(self.root_node.children) > 0:
             return max(self.root_node.children.values(), key= lambda x: x.visits).edge_action
@@ -136,7 +141,7 @@ class MCTS_Player(BaseAgent):
 
         #State was terminal
         if node.state.is_terminal:
-            return state.score[self.player] #change to score
+            return node.state.reward[self.player]
 
         #Execute simulations
         reward = 0
@@ -145,7 +150,7 @@ class MCTS_Player(BaseAgent):
             while not state.is_terminal:
                 state.make_action(default_policy.choose_action(state))
                 self.current_fm = self.current_fm + 1
-            reward = reward + state.score[self.player]
+            reward = reward + state.reward[self.player]
         average_reward = reward / self.rollouts
         return average_reward
 

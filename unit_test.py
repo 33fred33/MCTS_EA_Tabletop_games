@@ -9,6 +9,7 @@ import Games.mnk as mnk
 import Games.function_optimisation as fo
 import Agents.random as arand
 import Agents.vanilla_mcts as mcts
+import Agents.siea_mcts as siea_mcts
 import Utilities.experiment_utils as eu
 
 def game_can_end(state, random_seed, max_turns = 10000):
@@ -40,10 +41,12 @@ def test_game(state):
 def test_agent(agent):
     state = produce_game("mnk")
     random_agent = produce_agent("random")
+    print("Testing agent" + str(agent) + " as second player")
     for rs in range(50):
         rd.seed(rs)
         duplicate_state = state.duplicate()
         assert game_can_end_with_agents(duplicate_state, [random_agent, agent], rs), "Game did not end in 10000 turns. Random seed: " + str(rs) + ". Agent: " + str(agent) + "as second player"
+    print("Testing agent" + str(agent) + " as first player")
     for rs in range(50):
         rd.seed(rs)
         duplicate_state = state.duplicate()
@@ -52,15 +55,18 @@ def test_agent(agent):
 
 def produce_agent(name):
     if name=="random": return arand.RandomPlayer()
-    if name=="mcts": return mcts.MCTS_Player(max_iterations=100)
+    elif name=="mcts": return mcts.MCTS_Player(max_iterations=100, logs=True)
+    elif name=="siea_mcts": return siea_mcts.SIEA_MCTS_Player(max_iterations=100, logs=True)
+    else: print("Agent name not recognised")
 
 def produce_game(name):
     if name=="mnk": state = mnk.GameState(m=3,n=3,k=3)
-    if name=="gomoku": state = mnk.GameState(m=13,n=13,k=5)
-    if name=="fo1d1p": state = fo.GameState(function_index=0, n_players=1)
-    if name=="fo1d2p": state = fo.GameState(function_index=0, n_players=2)
-    if name=="fo2d1p": state = fo.GameState(function_index=5, n_players=1)
-    if name=="fo2d2p": state = fo.GameState(function_index=5, n_players=2)
+    elif name=="gomoku": state = mnk.GameState(m=13,n=13,k=5)
+    elif name=="fo1d1p": state = fo.GameState(function_index=0, n_players=1)
+    elif name=="fo1d2p": state = fo.GameState(function_index=0, n_players=2)
+    elif name=="fo2d1p": state = fo.GameState(function_index=5, n_players=1)
+    elif name=="fo2d2p": state = fo.GameState(function_index=5, n_players=2)
+    else: print("Game name not recognised")
     state.set_initial_state()
     return state
 
@@ -72,6 +78,7 @@ def test_mcts_tree(iterations=20, game_name = "mnk", agent_name = "mcts"):
     for _ in range(iterations):
         agent.iteration(agent.root_node)
     print(agent.view_mcts_tree())
+    return agent
 
 def run():
     #Database

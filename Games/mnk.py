@@ -35,22 +35,22 @@ class GameState(base_games.BaseGameState):
     is_terminal : bool = False
     player_turn : int = 0
     available_actions : List[Action] = []
-    score : List[float]
+    reward : List[float]
     direction_pairs = [["up","down"],["left","right"],["up_left","down_right"],["up_right","down_left"]]
 
     def __init__(self, m=13, n=13, k=5,
-                 losing_score=-1,
-                 draw_score=0,
-                 winning_score=1):
+                 losing_reward=-1,
+                 draw_reward=0,
+                 winning_reward=1):
         assert m >= 3, "m must be >= 3"
         assert n >= 3, "n must be >= 3"
         assert k >= 3 and (k <= m or k <= n), "k must be >= 3 and < m or n"
         self.m = m
         self.n = n 
         self.k = k
-        self.losing_score = losing_score
-        self.draw_score = draw_score
-        self.winning_score = winning_score
+        self.losing_reward = losing_reward
+        self.draw_reward = draw_reward
+        self.winning_reward = winning_reward
 
     def set_initial_state(self):
         
@@ -58,7 +58,7 @@ class GameState(base_games.BaseGameState):
         self.turn = 1
         self.player_turn = 0
         self.is_terminal = False
-        self.score = [None,None]
+        self.reward = [None,None]
         self.winner = None
 
         #Initialise board
@@ -149,10 +149,10 @@ class GameState(base_games.BaseGameState):
         self.winner = winner
         self.available_actions = []
         if winner is None:
-            self.score = [self.draw_score,self.draw_score]
+            self.reward = [self.draw_reward,self.draw_reward]
         else:
-            self.score[winner] = self.winning_score
-            self.score[1-winner] = self.losing_score
+            self.reward[winner] = self.winning_reward
+            self.reward[1-winner] = self.losing_reward
 
     def view_game_state(self):
         temp_board = np.full((self.m, self.n), " ")
@@ -166,12 +166,12 @@ class GameState(base_games.BaseGameState):
         the_duplicate = GameState(m=self.m, 
                                   n=self.n,
                                   k=self.k, 
-                                  losing_score = self.losing_score, 
-                                  draw_score = self.draw_score, 
-                                  winning_score = self.winning_score)
+                                  losing_reward = self.losing_reward, 
+                                  draw_reward = self.draw_reward, 
+                                  winning_reward = self.winning_reward)
         the_duplicate.turn = self.turn
         the_duplicate.winner = self.winner
-        the_duplicate.score = [s for s in self.score]
+        the_duplicate.reward = [s for s in self.reward]
         the_duplicate.player_turn = self.player_turn
         the_duplicate._available_actions = [{c:v for c,v in self._available_actions[0].items()}, {c:v for c,v in self._available_actions[1].items()}]
         the_duplicate.available_actions = [a for a in self.available_actions]
@@ -185,8 +185,8 @@ class GameState(base_games.BaseGameState):
 
     def logs_data(self):
         data = self.feature_vector()#{k:[v] for k,v in self.feature_vector().items()}
-        for i, player_score in enumerate(self.score):
-            data["Score_p"+str(i)] = player_score
+        for i, player_reward in enumerate(self.reward):
+            data["Reward_p"+str(i)] = player_reward
         data["Turn"] = self.turn
         data["Winner"] = self.winner
         data["N_available_actions"] = len(self.available_actions)

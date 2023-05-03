@@ -79,7 +79,7 @@ class GameState(base_games.BaseGameState):
     List of important attributes:
         self.players: list of player objects (min len: 1, max len: 2)
         self.winner: Result at end of game. 1=P1 wins, 2=P2 wins, 0=Draw
-        self.score: state's value
+        self.reward: state's value
         self.player_turn: Indicates the current player
         self.is_terminal: Indicates if the state is terminal
     Assumes ranges are 0 to 1 for any dimension, and reward goes from 0 to 1
@@ -111,7 +111,7 @@ class GameState(base_games.BaseGameState):
          
     def set_initial_state(self) -> None:
         self.winner = None
-        self.score = [None for _ in range(self.n_players)]
+        self.reward = [None for _ in range(self.n_players)]
         self.player_turn = 0
         self.is_terminal = False
         self.turn = 1
@@ -131,7 +131,7 @@ class GameState(base_games.BaseGameState):
         Clone.available_actions = [a for a in self.available_actions]
         Clone.ranges = [[x for x in d] for d in self.ranges]
         Clone.winner = self.winner
-        Clone.score = [s for s in self.score]
+        Clone.reward = [s for s in self.reward]
         Clone.player_turn = self.player_turn
         Clone.is_terminal = self.is_terminal   
         Clone.turn = self.turn
@@ -154,16 +154,16 @@ class GameState(base_games.BaseGameState):
          self.is_terminal = True
          p = self.function(self.eval_point())
          if self.for_test: 
-             if self.n_players == 1: self.score[0] = p #for finding the actual max
+             if self.n_players == 1: self.reward[0] = p #for finding the actual max
              else:
-                    self.score[0] = p
-                    self.score[1] = 1 - p
+                    self.reward[0] = p
+                    self.reward[1] = 1 - p
          else: 
-             if self.n_players == 1: self.score[0] = bernoulli.rvs(p) #for finding the actual max
+             if self.n_players == 1: self.reward[0] = bernoulli.rvs(p) #for finding the actual max
              else:
                     evaluation = bernoulli.rvs(p)
-                    self.score[0] = evaluation
-                    self.score[1] = 1 - evaluation
+                    self.reward[0] = evaluation
+                    self.reward[1] = 1 - evaluation
          return
       
       #turn end routine
@@ -200,8 +200,8 @@ class GameState(base_games.BaseGameState):
     
     def logs_data(self):
         data = self.feature_vector()
-        for i, player_score in enumerate(self.score):
-            data["Score_p"+str(i)] = player_score
+        for i, player_reward in enumerate(self.reward):
+            data["Score_p"+str(i)] = player_reward
         data["Turn"] = self.turn
         data["Winner"] = self.winner
         data["Eval_point"] = self.eval_point()

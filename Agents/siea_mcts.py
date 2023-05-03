@@ -1,15 +1,14 @@
-
-
 import operator
 from operator import attrgetter
 import numpy as np
 import time
-import random
+import random as rd
 from statistics import mean
 import math
 import os
 import pandas as pd
-
+from Agents.vanilla_mcts import MCTS_Player, Node
+from Agents.random import RandomPlayer
 
 from deap import algorithms
 from deap import base
@@ -18,385 +17,63 @@ from deap import tools
 from deap import gp
 
 
-class Player:
-    """
-    Players must be defined in pairs
-    
-    MCTS player returns the node and the optimal move.
-    
-    All other player returns None (instead of a node) and the chosen move.
-    """
-    
-    # Player 1 selects the optimal UCT move 
-    # Player 2 selects the worst move from Player 1's position
-    isFirstPlayer = True
-    
-    def __init__(self):
-        self.isFirstPlayer = Player.isFirstPlayer
-        self.name = "No Name"
-        self.logfile = None
-        self.fullName = "Definitely has no name"
-        self.isAIPlayer = True
-        self.family = None
-        
-        # switch
-        Player.isFirstPlayer = not Player.isFirstPlayer
-        
-    def chooseAction(self):
-        """
-        Move choice based on type of player
-        """
-        pass
-    
-    def __repr__(self):
-        return self.name
-    
-    def CreateFile(self, cols, fileSuffix):
-        """
-        Creates a Unique File for EA (ES + GP) Stats 
-        """
-        # name of player
-        name = self.name
-        logfile = os.path.join('logs', self.logfile)
-        
-        # add '_' to suffix
-        suffix = '_' + fileSuffix
-        
-        # check if file exists
-        if not os.path.exists(logfile):
-            os.makedirs(logfile)
-            print(f'Log file created - {logfile}')
-        
-        # current list of files
-        current_logs = os.listdir(logfile)
-        
-        # wait a few seconds between each file being made
-        n1 = random.randint(0, 100)
-        n2 = random.randint(20, 80)
-        time.sleep(n1/n2)
-        
-        # get files of matching names
-        matching = [file for file in current_logs if ((name in file) and (suffix in file))]
-        
-        # remove specific files from search
-        for file in ['ExpectimaxStats.csv', 'FinalLeagueTable.csv', 'MCTSStats.csv', 'PlayerStats.csv']:
-            if file in matching:
-                matching.remove(file)
-    
-        # if no files exist so far
-        if matching == []:
-            df = pd.DataFrame(columns = cols)
-            new_file = os.path.join(logfile, '0_' + name + suffix + '.csv')
-            df.to_csv(new_file, index=False) 
-            return new_file
-        
-        # get file number of latest file    
-        highest_number = max([int(file.split('_')[0]) for file in matching])
-        
-        # new file number
-        next_number = highest_number + 1
-        new_file = os.path.join(logfile, str(next_number) + '_' + name + suffix + '.csv')
-        
-        # blank template file
-        df = pd.read_csv(os.path.join(logfile, '0_' + name + suffix + '.csv'))
-        
-        # create new file
-        df.to_csv(new_file, index=False) 
-        return new_file
 
-    def UpdateFile(self, data):
-        """
-        Update csv file with data
-        """
-        if self.logs:
-            df = pd.read_csv(self.file)  # read in file
-            df = df.append(data, ignore_index = True)  # new data
-            df.to_csv(self.file, index=False)  # export
-         
-    def UpdateESFile(self, data):
-        """
-        Update EvoAlg csv file with data
-        """
-        if self.logs:
-            df = pd.read_csv(self.ES_file)  # read in file
-            df = df.append(data, ignore_index = True)  # new data
-            df.to_csv(self.ES_file, index=False)  # export
-    
-    def UpdateEVOFile(self, data):
-        """
-        Update EvoAlg csv file with data
-        """
-        if self.logs:
-            df = pd.read_csv(self.EVO_file)  # read in file
-            df = df.append(data, ignore_index = True)  # new data
-            df.to_csv(self.EVO_file, index=False)  # export
-           
-    def UpdateSEMFile(self, data):
-        """
-        Update EvoAlg csv file with data
-        """
-        if self.logs:
-            df = pd.read_csv(self.SEM_file)  # read in file
-            df = df.append(data, ignore_index = True)  # new data
-            df.to_csv(self.SEM_file, index=False)  # export
-        
-        
-class MCTS_ES_BACK_SEM_Player(Player):
-    
-    # MCTS with ES and backpropogation and semantics
-    
-    def __init__(self, iterations = 500, timeLimit = 10, isTimeLimited = False, c_param = 3, logs=False, logfile=None, name='ES_B_S_MCTS', Lambda=4, NGen=20, ES_Sims=30):
-        super().__init__()
-        self.iterations = iterations
-        self.timeLimit = timeLimit
-        self.isTimeLimited = isTimeLimited
-        self.c_param = c_param
-        self.name = name
-        self.Lambda = Lambda
-        self.NGen = NGen
-        self.ES_Sims = ES_Sims
-        
-        self.fullName = f'MCTS (Time Limit = {self.timeLimit})' if self.isTimeLimited else  f'MCTS (Iterations = {self.iterations})'
-        self.family = "ES_MCTS"
-        self.logs = logs
-        self.logfile = logfile
-        self.hasGPTree = False
-        self.GPTree = None
-        if self.logs:
-            self.cols = ['Name','Simulations','Turn','TimeTaken']
-            self.file = self.CreateFile(self.cols, 'Stats')
-            
-            self.EVO_cols = ['Name','Turn','IsDifferent','Function','NumberNodes', 'Depth']
-            self.EVO_file = self.CreateFile(self.EVO_cols, 'EvoUCT')
-            
-            self.ES_cols = ['Name','Turn','Generation','Lambda','TotalNodes','AverageNodes','AverageDepth','AverageSSD']
-            self.ES_file = self.CreateFile(self.ES_cols, 'EvoStr')
-            
-            self.SEM_cols = ['Name','Turn','Generation','Fitnesses','SSDs','BestIndex','WasRandom']
-            self.SEM_file = self.CreateFile(self.SEM_cols, 'SEM')
-        
-    def ClonePlayer(self):
-        Clone = MCTS_ES_BACK_SEM_Player(iterations=self.iterations, timeLimit=self.timeLimit, isTimeLimited = self.isTimeLimited, 
-                               c_param=self.c_param, logs=self.logs, logfile=self.logfile, name=self.name, Lambda=self.Lambda, NGen=self.NGen, ES_Sims=self.ES_Sims)
-        return Clone
-    
-    def chooseAction(self, state):
-        """
-        Choose actions using UCT function
-        """
-        return self.MCTS_Search(state, self.iterations, self.timeLimit, self.isTimeLimited)
-    
-    def MCTS_Search(self, root_state, iterations, timeLimit, isTimeLimited):
-        """
-        Conduct a UCT search for itermax iterations starting from rootstate.
-        Return the best move from the rootstate.
-        Assumes 2 alternating players (player 1 starts), with games results in the range [0, 1]
-        """
-        # Player 1 = 1, Player 2 = 2 (Player 2 wants to the game to be a loss)
-        playerSymbol = root_state.playerSymbol
-        
-        # state the Root Node
-        root_node = Node(state = root_state)
-        #startTime = time.time()
-        
-        if self.isTimeLimited:
-            self.MCTS_TimeLimit(root_node, root_state)
-        else:
-            self.MCTS_IterationLimit(root_node, root_state)
-                
-        # return the node with the highest number of wins from the view of the current player
-        if playerSymbol == 1:
-            bestMove = sorted(root_node.child, key = lambda c: c.Q)[-1].Move
-        else:
-            bestMove = sorted(root_node.child, key = lambda c: c.Q)[0].Move
-        
-        return bestMove.move
-    
-    def MCTS_IterationLimit(self, root_node, root_state):
-    
-        startTime = time.time()
-        
-        # copy 
-        state = root_state.CloneState()
-        
-        # first simulation
-        self.Rollout(root_node, state)
-        self.Backpropogate(root_node, state)
-        
-        # iterate for each simulation
-        for i in range(self.iterations-1):
-            node = root_node
-            state = root_state.CloneState()
-            # 4 steps
-            node = self.Select(node, state, root_state)
-            node = self.Expand(node, state)
-            self.Rollout(node, state)
-            self.Backpropogate(node, state)
-            
-        # latest time
-        endTime = time.time()
-        
-        if (root_state.Turn % 10 == 0):
-            print(f'({self.name})   TimeTaken: {round(endTime - startTime,3)} secs  -  Turn: {root_state.Turn}  -  Time:{time.strftime("%H:%M:%S", time.localtime())}')
-        
-        # reset GP info
+class SIEA_MCTS_Player(MCTS_Player):
+
+    def __init__(self, 
+                 rollouts=1, 
+                 c=math.sqrt(2), 
+                 max_fm=np.inf, 
+                 max_time=np.inf, 
+                 max_iterations=np.inf, 
+                 default_policy = RandomPlayer(), 
+                 name = "SIEA_MCTS",
+                    es_lambda = 4,
+                    es_fitness_iterations = 30,
+                    es_generations = 20,
+                    es_semantics_l = 5,
+                    es_semantics_u = 10,
+                 logs = False):
+        super().__init__(rollouts, c, max_fm, max_time, max_iterations, default_policy, name, logs)
+        self.es_lambda = es_lambda
+        self.es_fitness_iterations = es_fitness_iterations
+        self.es_generations = es_generations
+        self.es_semantics_l = es_semantics_l
+        self.es_semantics_u = es_semantics_u
+
         self.GPTree = None
         self.hasGPTree = False
-    
-        # append info to csv
-        if self.logs:
-            data = {'Name': self.name,'Simulations':self.iterations,'Turn':int((root_state.Turn+1)/2), 'TimeTaken':endTime - startTime}
-            self.UpdateFile(data)
-    
-    # 4 steps of MCTS
-    def Select(self, node, state, root_state):
-        # Select
-        while node.untried_moves == [] and node.child != []:  # node is fully expanded
-            if not self.hasGPTree:
-                # GP search
-                if root_state.Turn >= 1:
-                    # get the GPTree of this turn
-                    self.GPTree = ES_Search(node, self)
-                    self.hasGPTree = True
-            node = node.Search(self)
-            state.move(node.Move.move)
+        self.evolution_logs = pd.DataFrame()
+        self.choose_action_logs = pd.DataFrame()
+
+
+    def choose_action(self, state):
+        self.hasGPTree = False
+        super().choose_action(state)
+
+    def selection(self, node) -> Node:
+        #Returns a node that can be expanded selecting by UCT
+        assert node.state.is_terminal == False, "Selection called on a terminal node"
+        while not node.can_be_expanded() and not node.state.is_terminal:
+            if not self.hasGPTree: 
+                self.GPTree = ES_Search(node, self)
+                self.hasGPTree = True
+            node = ES_Search(node, self)
+            #node = max(node.children.values(), key= lambda x: self.UCB1(x))
         return node
     
-    def Expand(self, node, state):
-        # Expand
-        if node.untried_moves != [] and (not state.isGameOver):  # if we can expand, i.e. state/node is non-terminal
-            move_random = random.choice(node.untried_moves)
-            state.move(move_random.move)
-            node = node.AddChild(move = move_random, state = state, isGameOver = state.isGameOver)
-        return node
-    
-    def Rollout(self, node, state):
-        # Rollout - play random moves until the game reaches a terminal state
-        state.shuffle()
-        while not state.isGameOver:
-            m = state.getRandomMove()
-            state.move(m.move)
-              
-    def Backpropogate(self, node, state):
-        # Backpropogate
-        result = state.checkWinner()
-        while node != None:  # backpropogate from the expected node and work back until reaches root_node
-            node.UpdateNode(result, self.c_param)
-            node = node.parent
-            
-##############################################################################
-##############################################################################
-##############################################################################
+    def _update_evolution_logs(self, data):
+        #Data us a dataframe.
+        self.evolution_logs = pd.concat([self.evolution_logs, data], ignore_index=True)
 
-#C_PARAM = 2
-
-class Node:
-    """
-    The Search Tree is built of Nodes
-    A node in the search tree
-    """
-    
-    def __init__(self, Move = None, parent = None, state = None, isGameOver = False):
-        self.Move = Move  # the move that got us to this node - "None" for the root
-        self.parent = parent  # parent node of this node - "None" for the root node
-        self.child = []  # list of child nodes
-        self.state = state
-        self.untried_moves = state.availableMoves()
-        self.playerSymbol = state.playerSymbol
-        # keep track of visits/wins/losses
-        self.visits = 0
-        self.wins = 0
-        self.losses = 0
-        self.draws = 0
-        self.Q = 0
-        # UCT score
-        self.UCT_high = 0
-        self.UCT_low = 0
-        # GP search decision
-        self.GP_Tree = None
-        
-    
-    def __repr__(self):
-        visits = 1 if self.visits == 0 else self.visits
-        move = str(None) if (self.Move is None) else str(self.Move.move)
-        String = "["
-        String += f'Move:{move}, Wins:{round(self.wins,1)},'
-        String += f' Losses:{self.losses}, Draws:{self.draws}, Q:{round(self.Q,3)},'
-        String += f' Wins/Visits:{round(self.wins,1)}/{self.visits} ({round(self.wins/visits,3)}),'
-        String += f' UCT_high:{round(self.UCT_high, 3)}, UCT_low:{round(self.UCT_low, 3)},'
-        String += f' Remaining Moves:{len(self.untried_moves)}'
-        String += "]"
-        
-        return String
-    
-    def AddChild(self, move, state, isGameOver):
-        """
-        Add new child node for this move remove m from list of untried_moves.
-        Return the added child node.
-        """
-        node = Node(Move = move, state = state, isGameOver = isGameOver, parent = self)
-        self.untried_moves.remove(move)  # this move is now not available
-        self.child.append(node)
-        return node
-    
-    
-    def UpdateNode(self, result, c_param):
-        """
-        Update result and number of visits of node
-        """
-        self.visits += 1
-        self.wins += (result > 0)
-        self.losses += (result < 0)
-        self.draws += (result == 0)
-        self.Q = self.Q + (result - self.Q)/self.visits
-        
-    
-    def SwitchNode(self, move, state):
-        """
-        Switch node to new state
-        """
-        # if node has children
-        for i in self.child:
-            if i.Move == move:
-                return i
-        
-        # if node has no children
-        return self.AddChild(move, state)
-    
-    
-    def Search(self, MCTS_Player):
-        """
-        For the first half of the game use the UCB1 formula.
-        Else, use GP to find an alternative to UCT 
-        """
-        # initialize
-        hasGPTree = MCTS_Player.hasGPTree
-        c_param = MCTS_Player.c_param
-        
-        # select the child chosen from the GP tree
-        if hasGPTree:
-            return ES_Search(self, MCTS_Player)
-        # else, use normal UCT
-        else:
-            if self.playerSymbol == 1:
-                #  look for maximum output
-                choice_weights = [c.Q + (c_param * np.sqrt(np.log(self.visits) / c.visits)) for c in self.child]
-                return self.child[np.argmax(choice_weights)]
-            else: 
-                #  look for minimum output
-                choice_weights = [c.Q - (c_param * np.sqrt(np.log(self.visits) / c.visits)) for c in self.child]
-                return self.child[np.argmin(choice_weights)]
-
-  
-############################################################################################################################################################################################################################
-############################################################################################################################################################################################################################
-############################################################################################################################################################################################################################
-############################################################################################################################################################################################################################
+    def _update_choose_action_logs(self, data):
+        #Data is a dataframe, singlerow.
+        self.choose_action_logs = pd.concat([self.choose_action_logs, data], axis=1)
 
 
 # random constant
 def randomC():
-    c = random.choice([0.25, 0.5, 1, 2, 3, 5, 7, 10])
+    c = rd.choice([0.25, 0.5, 1, 2, 3, 5, 7, 10])
     return c
 
 def ES_Search(RootNode, MCTS_Player):
@@ -405,12 +82,12 @@ def ES_Search(RootNode, MCTS_Player):
     """
     # initialize state variables
     state = RootNode.state  # current game state
-    turn = state.Turn
+    turn = state.turn
     
     # initialize MCTS_Player variables
-    Lambda = MCTS_Player.Lambda
-    NGen = MCTS_Player.NGen
-    ES_Sims = MCTS_Player.ES_Sims
+    es_lambda = MCTS_Player.es_lambda
+    es_generations = MCTS_Player.es_generations
+    es_fitness_iterations = MCTS_Player.es_fitness_iterations
     hasGPTree = MCTS_Player.hasGPTree
     GPTree = MCTS_Player.GPTree
     
@@ -467,59 +144,52 @@ def ES_Search(RootNode, MCTS_Player):
     toolbox.register("compile", gp.compile, pset=pset)
 
 
-    def evalTree(individual, RootNode, state):
+    def evalTree(individual, RootNode, mcts_player): #OK
         # Transform the tree expression in a callable function
         func = toolbox.compile(expr=individual)
-        isPlayer1 = (state.playerSymbol == 1)
         
         # from this point simulate the game 10 times appending the results
         results = []
-        for i in range(ES_Sims):
+        for i in range(es_fitness_iterations):
             # copy the state
-            stateCopy = state.CloneState()
+            stateCopy = RootNode.state.duplicate()
             node = RootNode
             
             # child nodes
-            childNodes = node.child
-            nodeValues = [[c.Q, c.visits, node.visits] for c in childNodes] # values of the nodes
-            
+            #v =  [func(Q,n,N) for Q,n,N in nodeValues]
+            nodeValues = {a:func(c.total_reward, c.visits, node.visits) for a,c in node.children.items()} # values of the nodes
             # get the values of the tree for each child node
-            v =  [func(Q,n,N) for Q,n,N in nodeValues]
-            node = childNodes[np.argmax(v)] if isPlayer1 else childNodes[np.argmin(v)]
+            
+            node = node.children[max(nodeValues, key=nodeValues.get)] if mcts_player.player == node.state.player_turn else node.children[min(nodeValues, key=nodeValues.get)]
             
             # play the move of this child node
-            stateCopy.move(node.Move.move)
-
-            # shuffle deck
-            stateCopy.shuffle()
+            stateCopy.make_action(node.edge_action)
             
             # random rollout
-            while not stateCopy.isGameOver:
-                m = stateCopy.getRandomMove()
-                stateCopy.move(m.move)
+            while not stateCopy.is_terminal:
+                stateCopy.make_action(mcts_player.default_policy.choose_action(stateCopy))
+                #stateCopy.make_action()
                 
             # result
-            result = stateCopy.checkWinner()
-            results.append(result)
+            reward = stateCopy.reward[mcts_player.player]
+            results.append(reward)
             
             #Backpropogate
             while node != None:  # backpropogate from the expected node and work back until reaches root_node
-                node.UpdateNode(result,0)
+                node.update(new_reward = reward)
                 node = node.parent
         
         # semantics check  
         individual.semantics = sorted(results)
         
         fitness = np.mean(results)
-        # switch results for second player
-        fitness = -fitness if (not isPlayer1) else fitness
         
         return fitness,
         
 
     
     # register gp functions
-    toolbox.register("evaluate", evalTree, RootNode=RootNode, state=state)
+    toolbox.register("evaluate", evalTree, RootNode=RootNode, mcts_player=MCTS_Player)
     toolbox.register("select", selBestCustom)
     toolbox.register("mate", gp.cxOnePoint)
     toolbox.register("expr_mut", gp.genFull, min_=1, max_=3)
@@ -535,19 +205,16 @@ def ES_Search(RootNode, MCTS_Player):
     UCT_GP_Tree = creator.Individual(UCT_formula)
 
     
-    # if MCTS already has a gpTree, return the values for each child
+    # if MCTS already has a gpTree, return the best child node
     if hasGPTree:
-        playerSymbol = state.playerSymbol
-        nodeValues = [[c.Q, c.visits, RootNode.visits] for c in RootNode.child]
         func = toolbox.compile(expr=GPTree)
-        values = [func(Q,n,N) for Q,n,N in nodeValues]
-        if playerSymbol == 1:
-            return RootNode.child[np.argmax(values)]
-        else:
-            return RootNode.child[np.argmin(values)]
+        nodeValues = {a:func(c.total_reward, c.visits, RootNode.visits) for a,c in RootNode.children.items()}
+        node = node.children[max(nodeValues, key=nodeValues.get)] if MCTS_Player.player == node.state.player_turn else node.children[min(nodeValues, key=nodeValues.get)]
+        return node
     
     # else, find the optimal tree using GP 
     else:
+        print("Evolving UCT formula...")
         pop = [UCT_GP_Tree]  # one formula in tree
         hof = tools.HallOfFame(1)
             
@@ -560,26 +227,24 @@ def ES_Search(RootNode, MCTS_Player):
         mstats.register("max", np.max)
         
         pop, logbook = eaMuCommaLambdaCustom(MCTS_Player, turn, pop, toolbox, 
-                                             mu=1, lambda_=Lambda, ngen=NGen, pset=pset, cxpb=0, mutpb=1, 
+                                             mu=1, lambda_=es_lambda, ngen=es_generations, pset=pset, cxpb=0, mutpb=1, 
                                              stats=mstats, halloffame=hof, verbose=False)
         # return the best tree
         formula = str(hof[0])
         
         # append data to csv
-        data = {'Name': MCTS_Player.name, 'Turn':int((turn+1)/2), 'IsDifferent':(UCT_GP_Tree != hof[0]), 
-                'Function': formula, 'NumberNodes':len(hof[0]), 'Depth': (hof[0]).height }
-        MCTS_Player.UpdateEVOFile(data) 
+        data = {'evolved_formula_not_ucb1':(UCT_GP_Tree != hof[0]), 
+                'evolved_formula': formula, 
+                'evolved_formula_nodex':len(hof[0]), 
+                'evolved_formula_depth': (hof[0]).height }
+        MCTS_Player._update_choose_action_logs(pd.Dataframe(data), index=[0]) 
         
         #print(f'Chosen formula: {formula}')
         return hof[0]
 
-    
 #################################################################################  
 
-
-def eaMuCommaLambdaCustom(MCTS_Player, turn, population, toolbox, 
-                          mu, lambda_, ngen, pset, cxpb, mutpb,
-                          stats=None, halloffame=None, verbose=__debug__):
+def eaMuCommaLambdaCustom(MCTS_Player, turn, population, toolbox, mu, lambda_, ngen, pset, cxpb, mutpb, stats=None, halloffame=None, verbose=__debug__): #OK
     """
     This is the :math:`(\mu~,~\lambda)` evolutionary algorithm
     """
@@ -604,12 +269,16 @@ def eaMuCommaLambdaCustom(MCTS_Player, turn, population, toolbox,
 
     # Begin the generational process
     for gen in range(1, ngen + 1):
+        print("In generation: " + str(gen) + " of " + str(ngen) + "...")
         # Vary the population
+        print("Generating offsprings")
         offspring = varOr(population, toolbox, lambda_, cxpb, mutpb, pset)
 
         # Evaluate the individuals with an invalid fitness
+        print("Evaluating individuals")
         invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
         fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+        print("Firnesses: " + str(fitnesses))
         
         for ind, fit in zip(invalid_ind, fitnesses):
             ind.fitness.values = fit
@@ -619,21 +288,21 @@ def eaMuCommaLambdaCustom(MCTS_Player, turn, population, toolbox,
             halloffame.update(offspring)
 
         # Select the next generation population
+        print("Selecting next generation, pop size:", str(len(population)), ", offspring size:",str(len(offspring)))
         population[:] = toolbox.select(population + offspring, MCTS_Player, gen, turn)
 
         # Update the statistics with the new population
+        print("Updating statistics")
         record = stats.compile(population) if stats is not None else {}
         logbook.record(gen=gen, nevals=len(invalid_ind), **record)
         if verbose:
             print(logbook.stream)
     return population, logbook
 
-
-def semanticsDistance(original, new):
+def semanticsDistance(original, new): #OK
     return sum((np.absolute(np.subtract(original.semantics, new.semantics))/len(new.semantics)))
 
-
-def selBestCustom(individuals, MCTS_Player, generation, turn, fit_attr="fitness"):
+def selBestCustom(individuals, MCTS_Player, generation, turn, fit_attr="fitness"): #OK
     # initialize values to add to table
     Nodes = 0  # total number of nodes
     SSD = 0 # total semantic distance
@@ -646,6 +315,7 @@ def selBestCustom(individuals, MCTS_Player, generation, turn, fit_attr="fitness"
     SSD_list = []
     
     # iterate through each individual program
+    print("Calculating SD and depth")
     for i in individuals:
         Nodes += len(i)  # number of nodes in each individual
         # SSD between each new individual and sole parent
@@ -657,25 +327,38 @@ def selBestCustom(individuals, MCTS_Player, generation, turn, fit_attr="fitness"
         fitnesses_list.append(i.fitness.values)
         SSD_list.append(distance)
         
-    #print(f'Semantics List: {SSD_list}')
-        
-    # append data to csv
-    data = {'Name': MCTS_Player.name, 'Turn':int((turn+1)/2), 'Generation':generation, 'Lambda':numInd-1, 
-            'TotalNodes': Nodes, 'AverageNodes':Nodes/numInd, 'AverageDepth': TotalDepth/(numInd), 'AverageSSD':SSD/(numInd-1)}
-    MCTS_Player.UpdateESFile(data) 
-        
     # check how many equal max fitness
     numberMax = fitnesses_list.count(max(fitnesses_list))
+    print("Number of max fitnesses: " + str(numberMax))
     
+    bestIndex = None
+    isRandom = None
     if numberMax > 1:
-        return [individuals[SemanticsDecider(fitnesses_list, SSD_list, MCTS_Player, turn, generation)]]
+        bestIndex, isRandom = SemanticsDecider(fitnesses_list, SSD_list, MCTS_Player, turn, generation)
+        to_return = [individuals[bestIndex]]
     else:
         # sorted by fitness
         ind_sorted = sorted(individuals, key=attrgetter("fitness"), reverse=True)
-        return ind_sorted[:1]
-    
+        to_return = ind_sorted[:1]
 
-def SemanticsDecider(fitnesses_list, SSD_list, MCTS_Player, turn, generation):
+    #Update evolution file
+    data = {'generation':generation, 
+            'es_lambda':numInd-1, 
+            'total_nodes': Nodes, 
+            'average_nodes':Nodes/numInd, 
+            'average_depth': TotalDepth/(numInd), 
+            'average_SSD':SSD/(numInd-1),
+            'fitnesses':fitnesses_list, 
+            'SSDs': SSD_list, 
+            'best_index_by_semantics':bestIndex, 
+            'semantics_chose_randomly':isRandom
+            }
+    print("Updating evolution file")
+    MCTS_Player._update_evolution_logs(pd.DataFrame(data, index=[0]))
+
+    return to_return
+    
+def SemanticsDecider(fitnesses_list, SSD_list, MCTS_Player, turn, generation): #OK
     #print(f'(ES Semantics) Fitness: {fitnesses_list}, SSD: {SSD_list}')
     # lower and upper thresholdof SSD
     L = 5
@@ -696,20 +379,13 @@ def SemanticsDecider(fitnesses_list, SSD_list, MCTS_Player, turn, generation):
     # if none match criteria
     if bestIndex is None:
         isRandom = True
-        bestIndex = random.choice(indices)
-    
-    # update Semantics file
-    data = {'Name': MCTS_Player.name, 'Turn':int((turn+1)/2), 'Generation':generation, 'Fitnesses':fitnesses_list, 
-            'SSDs': SSD_list, 'BestIndex':bestIndex, 'WasRandom':isRandom}
-    MCTS_Player.UpdateSEMFile(data) 
+        bestIndex = rd.choice(indices)
     
     # return best index of best individual
     #print(f'(ES Semantics) Best Index: {bestIndex}')
-    return bestIndex
+    return bestIndex, isRandom
         
-
-
-def varOr(population, toolbox, lambda_, cxpb, mutpb, pset):
+def varOr(population, toolbox, lambda_, cxpb, mutpb, pset): #OK
     """
     Part of an evolutionary algorithm applying only the variation part
     (crossover, mutation **or** reproduction). The modified individuals have
@@ -726,7 +402,7 @@ def varOr(population, toolbox, lambda_, cxpb, mutpb, pset):
         pset.terminals[object][3] = gp.Terminal(randomC(), True, object)
         pset.renameArguments(ARG3='c')
         
-        ind = toolbox.clone(random.choice(population))
+        ind = toolbox.clone(rd.choice(population))
         ind, = toolbox.mutate(ind)
         # make sure it's a new program less than or equal to depth 8
         while((ind == population[0]) or (ind.height > 8) ):
@@ -736,8 +412,7 @@ def varOr(population, toolbox, lambda_, cxpb, mutpb, pset):
         
     return offspring
 
-
-def mutUniformCustom(individual, expr, pset):
+def mutUniformCustom(individual, expr, pset): #OK
     """Randomly select a point in the tree *individual*, then replace the
     subtree at that point as a root by the expression generated using method
     :func:`expr`.
@@ -751,7 +426,7 @@ def mutUniformCustom(individual, expr, pset):
     #   90% internal nodes
     #   10% leaves
     
-    isLeaf = (random.random() > 0.9)  # random
+    isLeaf = (rd.random() > 0.9)  # random
     
     if isLeaf:
         # get index of terminals
@@ -765,7 +440,7 @@ def mutUniformCustom(individual, expr, pset):
     if indices == []:
         index = 0
     else:
-        index = random.choice(indices)  # choose random index
+        index = rd.choice(indices)  # choose random index
         
     slice_ = individual.searchSubtree(index)  # cut individual at chosen index
     type_ = individual[index].ret

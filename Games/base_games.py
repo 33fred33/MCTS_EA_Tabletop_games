@@ -6,8 +6,6 @@ class BaseGameState(Protocol):
 
     def make_action(self, action) -> None: raise NotImplementedError
 
-    def is_terminal(self) -> bool: raise NotImplementedError
-
     def duplicate(self): raise NotImplementedError
 
     def set_initial_state(self) -> None: raise NotImplementedError
@@ -18,5 +16,6 @@ class BaseGameState(Protocol):
 
     available_actions: List #List[Action]
     player_turn:int #begins in 0, ends in n_players-1
-    score:List[float] #Default:None. Updated to reflect the final score
+    reward:List[float] #Reward given to each player at any time-step. Default:None. Updated to reflect the reward of the last action
     turn:int #begins in 1
+    is_terminal:bool #Default:False. Updated to True when the game is over
