@@ -73,17 +73,18 @@ def produce_game(name):
 def test_mcts_tree(iterations=20, game_name = "mnk", agent_name = "mcts"):
     state = produce_game(game_name)
     agent = produce_agent(agent_name)
-    agent.max_iterations = -1
+    agent.max_iterations = iterations#-1
+    #_ = agent.choose_action(state)
+    #for _ in range(iterations):
+    #    agent.iteration(agent.root_node)
     _ = agent.choose_action(state)
-    for _ in range(iterations):
-        agent.iteration(agent.root_node)
     print(agent.view_mcts_tree())
     return agent
 
 def run():
     #Database
     game_names = ["mnk", "fo1d1p", "fo1d2p", "fo2d1p", "fo2d2p"]
-    agent_names = ["random", "mcts"]
+    agent_names = ["random", "mcts", "siea_mcts"]
 
     #Test game mnk
     print("Game tests running")

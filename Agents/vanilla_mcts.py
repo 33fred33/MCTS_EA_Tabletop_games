@@ -37,7 +37,8 @@ class Node():
         self.visits = self.visits + 1
 
     def __str__(self):
-        return "edge_action:" + str(self.edge_action) + ", visits:" + str(self.visits) + ", avg_reward:" + "{0:.3g}".format(self.total_reward/self.visits) + ", children:" + str(len(self.children))
+        avg_reward = self.total_reward/self.visits if self.visits > 0 else np.nan
+        return "edge_action:" + str(self.edge_action) + ", visits:" + str(self.visits) + ", avg_reward:" + "{0:.3g}".format(avg_reward) + ", children:" + str(len(self.children))
 
     def __eq__(self, other):
         if other is None:
@@ -76,6 +77,7 @@ class MCTS_Player(BaseAgent):
 
     def choose_action(self, state):
 
+        self.choose_action_logs = pd.DataFrame()
         self.root_node = Node(state=state.duplicate())
         self.player = self.root_node.state.player_turn
         self.current_fm = 0
@@ -92,10 +94,17 @@ class MCTS_Player(BaseAgent):
             self.current_time = time.time() - start_time
 
         if len(self.root_node.children) > 0:
-            return max(self.root_node.children.values(), key= lambda x: x.visits).edge_action
+            to_return = max(self.root_node.children.values(), key= lambda x: x.visits).edge_action
         else:
             print(self.name, ": Random move returned")
-            return rd.choice(self.root_node.state.available_actions)
+            to_return = rd.choice(self.root_node.state.available_actions)
+        
+        #Update logs
+        if self.logs:
+            self._update_choose_action_logs()
+            self.choose_action_logs["chosen_action"] = to_return
+
+        return to_return
 
     def iteration(self, node):
 
@@ -185,6 +194,30 @@ class MCTS_Player(BaseAgent):
         for child in node.children.values():
             my_string = my_string + self.view_mcts_tree(child, depth+1)
         return my_string
+
+    def _update_choose_action_logs(self):
+        data_dict = {
+            "Player": str(self),
+            "player_name": self.name,
+            "state": str(self.root_node.state),
+            "c_parameter": self.c,
+            "rollouts": self.rollouts,
+            "max_fm": self.max_fm,
+            "max_time": self.max_time,
+            "max_iterations": self.max_iterations,
+            "current_fm": self.current_fm,
+            "current_time": self.current_time,
+            "current_iterations": self.current_iterations,
+            "root_node_visits": str(self.root_node.visits),
+            "root_node_avg_reward": self.root_node.total_reward / self.root_node.visits if self.root_node.visits > 0 else np.nan ,
+            "nodes_count": self.nodes_count,
+            "default_policy": str(self.default_policy),
+        }
+        for i,c in enumerate(self.root_node.children.values()):
+            data_dict["action" + str(i)] = c.edge_action
+            data_dict["action" + str(i) + "_visits"] = c.visits
+            data_dict["action" + str(i) + "_avg_reward"] = c.total_reward / c.visits if c.visits > 0 else np.nan    
+        self.choose_action_logs = pd.concat([self.choose_action_logs, pd.DataFrame(data_dict, index=[0])], axis=1)
 
     def __str__(self):
         return self.name

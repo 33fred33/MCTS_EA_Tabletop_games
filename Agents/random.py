@@ -1,12 +1,15 @@
 import random as rd
 from Agents.base_agents import BaseAgent
+import pandas as pd
 
 class RandomPlayer(BaseAgent):
     
     player : int = 0
 
-    def __init__(self, name="Random"):
+    def __init__(self, name="Random", logs = False):
         self.name = name
+        self.logs = logs
+        self.choose_action_logs = pd.DataFrame({"Player":self.name, "player_name":self.name}, index=[0])
     
     def choose_action(self, state): #game interface dependencies
         return rd.choice(state.available_actions)

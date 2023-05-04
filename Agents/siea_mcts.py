@@ -48,6 +48,7 @@ class SIEA_MCTS_Player(MCTS_Player):
 
 
     def choose_action(self, state):
+        self.evolution_logs = pd.DataFrame()
         self.hasGPTree = False
         super().choose_action(state)
 
@@ -58,17 +59,16 @@ class SIEA_MCTS_Player(MCTS_Player):
             if not self.hasGPTree: 
                 self.GPTree = ES_Search(node, self)
                 self.hasGPTree = True
-            node = ES_Search(node, self)
+            #node = ES_Search(node, self)
             #node = max(node.children.values(), key= lambda x: self.UCB1(x))
+            nodeValues = {a:self.GPTree(c.total_reward, c.visits, node.visits) for a,c in node.children.items()}
+            node = node.children[max(nodeValues, key=nodeValues.get)] if MCTS_Player.player == node.state.player_turn else node.children[min(nodeValues, key=nodeValues.get)]
+
         return node
     
     def _update_evolution_logs(self, data):
         #Data us a dataframe.
         self.evolution_logs = pd.concat([self.evolution_logs, data], ignore_index=True)
-
-    def _update_choose_action_logs(self, data):
-        #Data is a dataframe, singlerow.
-        self.choose_action_logs = pd.concat([self.choose_action_logs, data], axis=1)
 
 
 # random constant
@@ -209,7 +209,7 @@ def ES_Search(RootNode, MCTS_Player):
     if hasGPTree:
         func = toolbox.compile(expr=GPTree)
         nodeValues = {a:func(c.total_reward, c.visits, RootNode.visits) for a,c in RootNode.children.items()}
-        node = node.children[max(nodeValues, key=nodeValues.get)] if MCTS_Player.player == node.state.player_turn else node.children[min(nodeValues, key=nodeValues.get)]
+        node = RootNode.children[max(nodeValues, key=nodeValues.get)] if MCTS_Player.player == RootNode.state.player_turn else RootNode.children[min(nodeValues, key=nodeValues.get)]
         return node
     
     # else, find the optimal tree using GP 
@@ -226,7 +226,7 @@ def ES_Search(RootNode, MCTS_Player):
         mstats.register("min", np.min)
         mstats.register("max", np.max)
         
-        pop, logbook = eaMuCommaLambdaCustom(MCTS_Player, turn, pop, toolbox, 
+        pop = eaMuCommaLambdaCustom(MCTS_Player, turn, pop, toolbox, 
                                              mu=1, lambda_=es_lambda, ngen=es_generations, pset=pset, cxpb=0, mutpb=1, 
                                              stats=mstats, halloffame=hof, verbose=False)
         # return the best tree
@@ -235,12 +235,13 @@ def ES_Search(RootNode, MCTS_Player):
         # append data to csv
         data = {'evolved_formula_not_ucb1':(UCT_GP_Tree != hof[0]), 
                 'evolved_formula': formula, 
-                'evolved_formula_nodex':len(hof[0]), 
+                'evolved_formula_nodes':len(hof[0]), 
                 'evolved_formula_depth': (hof[0]).height }
-        MCTS_Player._update_choose_action_logs(pd.Dataframe(data), index=[0]) 
+        #MCTS_Player._update_choose_action_logs(pd.DataFrame(data, index=[0])) 
+        MCTS_Player.choose_action_logs = pd.concat([MCTS_Player.choose_action_logs, pd.DataFrame(data, index=[0])], axis=1)
         
         #print(f'Chosen formula: {formula}')
-        return hof[0]
+        return toolbox.compile(expr=hof[0])
 
 #################################################################################  
 
@@ -269,16 +270,16 @@ def eaMuCommaLambdaCustom(MCTS_Player, turn, population, toolbox, mu, lambda_, n
 
     # Begin the generational process
     for gen in range(1, ngen + 1):
-        print("In generation: " + str(gen) + " of " + str(ngen) + "...")
+        #print("In generation: " + str(gen) + " of " + str(ngen) + "...")
         # Vary the population
-        print("Generating offsprings")
+        #print("Generating offsprings")
         offspring = varOr(population, toolbox, lambda_, cxpb, mutpb, pset)
 
         # Evaluate the individuals with an invalid fitness
-        print("Evaluating individuals")
+        #print("Evaluating individuals")
         invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
         fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
-        print("Firnesses: " + str(fitnesses))
+        #print("Firnesses: " + str(fitnesses))
         
         for ind, fit in zip(invalid_ind, fitnesses):
             ind.fitness.values = fit
@@ -288,16 +289,17 @@ def eaMuCommaLambdaCustom(MCTS_Player, turn, population, toolbox, mu, lambda_, n
             halloffame.update(offspring)
 
         # Select the next generation population
-        print("Selecting next generation, pop size:", str(len(population)), ", offspring size:",str(len(offspring)))
+        #print("Selecting next generation, pop size:", str(len(population)), ", offspring size:",str(len(offspring)))
         population[:] = toolbox.select(population + offspring, MCTS_Player, gen, turn)
 
         # Update the statistics with the new population
-        print("Updating statistics")
-        record = stats.compile(population) if stats is not None else {}
-        logbook.record(gen=gen, nevals=len(invalid_ind), **record)
+        
         if verbose:
-            print(logbook.stream)
-    return population, logbook
+            #print("Updating statistics")
+            record = stats.compile(population) if stats is not None else {}
+            logbook.record(gen=gen, nevals=len(invalid_ind), **record)
+            #print(logbook.stream)
+    return population
 
 def semanticsDistance(original, new): #OK
     return sum((np.absolute(np.subtract(original.semantics, new.semantics))/len(new.semantics)))
@@ -307,6 +309,8 @@ def selBestCustom(individuals, MCTS_Player, generation, turn, fit_attr="fitness"
     Nodes = 0  # total number of nodes
     SSD = 0 # total semantic distance
     TotalDepth = 0  # add depth of each indivdual
+    L = 5
+    U = 10
     
     numInd = len(individuals)
     
@@ -315,7 +319,7 @@ def selBestCustom(individuals, MCTS_Player, generation, turn, fit_attr="fitness"
     SSD_list = []
     
     # iterate through each individual program
-    print("Calculating SD and depth")
+    #print("Calculating SD and depth")
     for i in individuals:
         Nodes += len(i)  # number of nodes in each individual
         # SSD between each new individual and sole parent
@@ -329,12 +333,14 @@ def selBestCustom(individuals, MCTS_Player, generation, turn, fit_attr="fitness"
         
     # check how many equal max fitness
     numberMax = fitnesses_list.count(max(fitnesses_list))
-    print("Number of max fitnesses: " + str(numberMax))
+    #print("Number of max fitnesses: " + str(numberMax))
     
     bestIndex = None
     isRandom = None
+    semantics_used = False
     if numberMax > 1:
-        bestIndex, isRandom = SemanticsDecider(fitnesses_list, SSD_list, MCTS_Player, turn, generation)
+        semantics_used = True
+        bestIndex, isRandom = SemanticsDecider(fitnesses_list, SSD_list, MCTS_Player, turn, generation,L,U)
         to_return = [individuals[bestIndex]]
     else:
         # sorted by fitness
@@ -348,21 +354,21 @@ def selBestCustom(individuals, MCTS_Player, generation, turn, fit_attr="fitness"
             'average_nodes':Nodes/numInd, 
             'average_depth': TotalDepth/(numInd), 
             'average_SSD':SSD/(numInd-1),
-            'fitnesses':fitnesses_list, 
-            'SSDs': SSD_list, 
+            'fitnesses':str(fitnesses_list), 
+            'SSDs': str(SSD_list), 
+            "semantics_used": semantics_used,
             'best_index_by_semantics':bestIndex, 
-            'semantics_chose_randomly':isRandom
+            'semantics_chose_randomly':isRandom,
+            "semantics_L": L,
+            "semantics_U": U,
             }
-    print("Updating evolution file")
     MCTS_Player._update_evolution_logs(pd.DataFrame(data, index=[0]))
 
     return to_return
     
-def SemanticsDecider(fitnesses_list, SSD_list, MCTS_Player, turn, generation): #OK
+def SemanticsDecider(fitnesses_list, SSD_list, MCTS_Player, turn, generation, L, U): #OK
     #print(f'(ES Semantics) Fitness: {fitnesses_list}, SSD: {SSD_list}')
     # lower and upper thresholdof SSD
-    L = 5
-    U = 10
     
     # index of max values
     indices = [i for i, x in enumerate(fitnesses_list) if x == max(fitnesses_list)]

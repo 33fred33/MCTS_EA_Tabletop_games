@@ -35,6 +35,9 @@ class GamePlayer():
         #Set logs
         action_logs = pd.DataFrame(columns=["Player", "Chosen_action", "Time", "Game_index"])
         game_logs = pd.DataFrame()
+        if logs:
+            for p in self.players:
+                p.logs = True
 
         #Play game
         while not gs.is_terminal:
@@ -45,12 +48,18 @@ class GamePlayer():
             #Update logs
             if logs:
                 #ref: https://stackoverflow.com/questions/24284342/insert-a-row-to-pandas-dataframe
-                action_logs = pd.concat([action_logs, pd.DataFrame([[
-                    str(self.players[gs.player_turn]),       #player
-                    str(action),                        #"chosen_action"
-                    selection_time,                      #"time"
-                    self.games_count                   #"game_index"
-                ]], columns=action_logs.columns)], ignore_index=True)
+                #action_logs = pd.concat([action_logs, pd.DataFrame([[
+                #    str(self.players[gs.player_turn]),       #player
+                #    str(action),                        #"chosen_action"
+                #    selection_time,                      #"time"
+                #    self.games_count                   #"game_index"
+                #]], columns=action_logs.columns)], ignore_index=True)
+                action_log = self.players[gs.player_turn].choose_action_logs #Assumes this log is single row
+                action_log["game_index"] = self.games_count
+                action_log["selection_time"] = selection_time
+                action_log["returned_action"] = str(action)
+                action_log["pg_player"] = str(self.players[gs.player_turn])
+                action_logs = pd.concat([action_logs, action_log], ignore_index=True)
                 game_logs = pd.concat([game_logs, gs.logs_data()], ignore_index=True)
 
             #Make action    
@@ -94,3 +103,5 @@ class GamePlayer():
         seeds = rd.sample(range(0, 2**32), n_games)
         for i in range(n_games):
             self.play_game(random_seed = seeds[i], logs = logs)
+
+#def play_match()
