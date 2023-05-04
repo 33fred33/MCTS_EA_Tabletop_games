@@ -9,7 +9,7 @@ import pandas as pd
 import Games.mnk as mnk
 import Agents.random as arand
 import Agents.vanilla_mcts as mcts 
-
+import os
 
 class GamePlayer():
     def __init__(self, game_state, players) -> None:
@@ -33,7 +33,7 @@ class GamePlayer():
             rd.seed(random_seed)
 
         #Set logs
-        action_logs = pd.DataFrame(columns=["Player", "Chosen_action", "Time", "Game_index"])
+        action_logs = pd.DataFrame()
         game_logs = pd.DataFrame()
         if logs:
             for p in self.players:
@@ -103,5 +103,11 @@ class GamePlayer():
         seeds = rd.sample(range(0, 2**32), n_games)
         for i in range(n_games):
             self.play_game(random_seed = seeds[i], logs = logs)
+
+    def save_data(self, file_path):
+        "Saves logs to file_path"
+        self.logs_by_game.to_csv(file_path + "_by_game.csv", mode="a", header = not os.path.exists(file_path))
+        self.logs_by_action.to_csv(file_path + "_by_action.csv", mode="a", header = not os.path.exists(file_path))
+        #, mode="a", header = not os.path.exists(file_path))
 
 #def play_match()

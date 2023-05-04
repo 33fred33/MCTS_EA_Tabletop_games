@@ -16,7 +16,10 @@ from deap import creator
 from deap import tools
 from deap import gp
 
-
+# want to maximise the solution
+creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+# define the structure of the programs 
+creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax) 
 
 class SIEA_MCTS_Player(MCTS_Player):
 
@@ -50,7 +53,8 @@ class SIEA_MCTS_Player(MCTS_Player):
     def choose_action(self, state):
         self.evolution_logs = pd.DataFrame()
         self.hasGPTree = False
-        super().choose_action(state)
+        to_return = super().choose_action(state)
+        return to_return
 
     def selection(self, node) -> Node:
         #Returns a node that can be expanded selecting by UCT
@@ -132,10 +136,7 @@ def ES_Search(RootNode, MCTS_Player):
     prims = pset.primitives[object]
     terminals = pset.terminals[object]
     
-    # want to maximise the solution
-    creator.create("FitnessMax", base.Fitness, weights=(1.0,))
-    # define the structure of the programs 
-    creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax) 
+
     
     #  register the generation functions into a Toolbox
     toolbox = base.Toolbox()
@@ -214,7 +215,7 @@ def ES_Search(RootNode, MCTS_Player):
     
     # else, find the optimal tree using GP 
     else:
-        print("Evolving UCT formula...")
+        #print("Evolving UCT formula...")
         pop = [UCT_GP_Tree]  # one formula in tree
         hof = tools.HallOfFame(1)
             
