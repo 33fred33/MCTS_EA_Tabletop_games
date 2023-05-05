@@ -195,29 +195,37 @@ class MCTS_Player(BaseAgent):
             my_string = my_string + self.view_mcts_tree(child, depth+1)
         return my_string
 
-    def _update_choose_action_logs(self):
+    def agent_data (self):
         data_dict = {
             "Player": str(self),
             "player_name": self.name,
-            "state": str(self.root_node.state),
             "c_parameter": self.c,
             "rollouts": self.rollouts,
             "max_fm": self.max_fm,
             "max_time": self.max_time,
             "max_iterations": self.max_iterations,
-            "current_fm": self.current_fm,
+            "default_policy": str(self.default_policy),
+            "producing_logs": self.logs,
+        }
+        return pd.DataFrame(data_dict, index=[0])
+
+    def _update_choose_action_logs(self):
+        data_dict = {
+            "state": str(self.root_node.state),
+            "forward_model_calls": self.current_fm,
             "current_time": self.current_time,
             "current_iterations": self.current_iterations,
             "root_node_visits": str(self.root_node.visits),
             "root_node_avg_reward": self.root_node.total_reward / self.root_node.visits if self.root_node.visits > 0 else np.nan ,
             "nodes_count": self.nodes_count,
-            "default_policy": str(self.default_policy),
         }
         for i,c in enumerate(self.root_node.children.values()):
             data_dict["action" + str(i)] = c.edge_action
             data_dict["action" + str(i) + "_visits"] = c.visits
             data_dict["action" + str(i) + "_avg_reward"] = c.total_reward / c.visits if c.visits > 0 else np.nan    
-        self.choose_action_logs = pd.concat([self.choose_action_logs, pd.DataFrame(data_dict, index=[0])], axis=1)
+        action_df = pd.DataFrame(data_dict, index=[0])
+        action_df = pd.concat([action_df, self.agent_data()], axis=1)
+        self.choose_action_logs = pd.concat([self.choose_action_logs, action_df], axis=1)
 
     def __str__(self):
         return self.name

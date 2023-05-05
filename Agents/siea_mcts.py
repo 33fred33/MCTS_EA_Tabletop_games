@@ -49,10 +49,10 @@ class SIEA_MCTS_Player(MCTS_Player):
         self.evolution_logs = pd.DataFrame()
         self.choose_action_logs = pd.DataFrame()
 
-
     def choose_action(self, state):
         self.evolution_logs = pd.DataFrame()
         self.hasGPTree = False
+        self.GPTree = None
         to_return = super().choose_action(state)
         return to_return
 
@@ -74,8 +74,19 @@ class SIEA_MCTS_Player(MCTS_Player):
         #Data us a dataframe.
         self.evolution_logs = pd.concat([self.evolution_logs, data], ignore_index=True)
 
+    def agent_data(self):
+        agent_data = super().agent_data()
+        data_dict = {
+            "es_lambda":self.es_lambda,
+            "es_fitness_iterations":self.es_fitness_iterations,
+            "es_generations":self.es_generations,
+            "es_semantics_l":self.es_semantics_l,
+            "es_semantics_u":self.es_semantics_u,
+        }
+        data_df = pd.DataFrame(data_dict, index=[0])
+        return pd.concat([agent_data, data_df], axis=1)
 
-# random constant
+
 def randomC():
     c = rd.choice([0.25, 0.5, 1, 2, 3, 5, 7, 10])
     return c
@@ -169,6 +180,7 @@ def ES_Search(RootNode, MCTS_Player):
             # random rollout
             while not stateCopy.is_terminal:
                 stateCopy.make_action(mcts_player.default_policy.choose_action(stateCopy))
+                mcts_player.current_fm = mcts_player.current_fm + 1
                 #stateCopy.make_action()
                 
             # result
@@ -455,8 +467,6 @@ def mutUniformCustom(individual, expr, pset): #OK
 
     return individual,
 
-
-##########################################################################################################
 
 
 
