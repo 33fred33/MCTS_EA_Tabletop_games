@@ -31,6 +31,7 @@ class SIEA_MCTS_Player(MCTS_Player):
                  max_iterations=np.inf, 
                  default_policy = RandomPlayer(), 
                  name = "SIEA_MCTS",
+                    use_semantics = True,
                     es_lambda = 4,
                     es_fitness_iterations = 30,
                     es_generations = 20,
@@ -43,6 +44,7 @@ class SIEA_MCTS_Player(MCTS_Player):
         self.es_generations = es_generations
         self.es_semantics_l = es_semantics_l
         self.es_semantics_u = es_semantics_u
+        self.use_semantics = use_semantics
 
         self.GPTree = None
         self.hasGPTree = False
@@ -83,6 +85,7 @@ class SIEA_MCTS_Player(MCTS_Player):
             "es_generations":self.es_generations,
             "es_semantics_l":self.es_semantics_l,
             "es_semantics_u":self.es_semantics_u,
+            "use_semantics":self.use_semantics,
         }
         data_df = pd.DataFrame(data_dict, index=[0])
         return pd.concat([agent_data, data_df], axis=1)
@@ -353,7 +356,7 @@ def selBestCustom(individuals, MCTS_Player, generation, turn, fit_attr="fitness"
     bestIndex = None
     isRandom = None
     semantics_used = False
-    if numberMax > 1:
+    if numberMax > 1 and MCTS_Player.use_semantics:
         semantics_used = True
         bestIndex, isRandom = SemanticsDecider(fitnesses_list, SSD_list, MCTS_Player, turn, generation,L,U)
         to_return = [individuals[bestIndex]]

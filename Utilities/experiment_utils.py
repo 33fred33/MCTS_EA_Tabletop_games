@@ -242,7 +242,7 @@ def mcts_decision_analysis(game_state, mcts_player, logs_path, runs = 1, random_
         "avg_root_avg_reward": st.mean(logs_by_run["avg_reward"]),
         "std_root_avg_reward": st.stdev(logs_by_run["avg_reward"]),
         "random_seed": random_seed,
-        "runs": random_seed,
+        "runs": runs,
     }
     global_data_df = pd.DataFrame(global_data, index=[0])
     lm.dump_data(global_data_df, file_path= logs_path, file_name="results.csv")
