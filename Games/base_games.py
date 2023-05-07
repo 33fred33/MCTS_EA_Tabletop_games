@@ -1,6 +1,7 @@
 from typing import Protocol
 from enum import Enum, auto
 from typing import List
+import pandas as pd
 
 class BaseGameState(Protocol):
 
@@ -14,8 +15,13 @@ class BaseGameState(Protocol):
 
     def feature_vector(self) -> List: raise NotImplementedError
 
+    def logs_data(self) -> pd.DataFrame: raise NotImplementedError
+
+    def game_definition_data(self) -> pd.DataFrame: raise NotImplementedError
+
     available_actions: List #List[Action]
     player_turn:int #begins in 0, ends in n_players-1
     reward:List[float] #Reward given to each player at any time-step. Default:None. Updated to reflect the reward of the last action
     turn:int #begins in 1
     is_terminal:bool #Default:False. Updated to True when the game is over
+    name:str #Name of the game

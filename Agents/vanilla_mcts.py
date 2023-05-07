@@ -36,6 +36,28 @@ class Node():
         self.total_reward = self.total_reward + new_reward
         self.visits = self.visits + 1
 
+    def subtree_nodes(self, node=None):
+        if node is None:
+            node = self
+        my_nodes = [node]
+
+        for child in node.children.values():
+            my_nodes = my_nodes + self.subtree_nodes(child)
+        return my_nodes
+
+    def node_data(self):
+        data = {
+            "expansion_index": self.expansion_index,
+            "visits": self.visits,
+            "total_reward": self.total_reward,
+            "avg_reward": self.total_reward/self.visits if self.visits > 0 else np.nan,
+            "children": len(self.children),
+            "state": str(self.state),
+            "edge_action": str(self.edge_action),
+
+        }
+        return pd.DataFrame(data, index=[0])
+
     def __str__(self):
         avg_reward = self.total_reward/self.visits if self.visits > 0 else np.nan
         return "edge_action:" + str(self.edge_action) + ", visits:" + str(self.visits) + ", avg_reward:" + "{0:.3g}".format(avg_reward) + ", children:" + str(len(self.children))
@@ -78,12 +100,14 @@ class MCTS_Player(BaseAgent):
     def choose_action(self, state):
 
         self.choose_action_logs = pd.DataFrame()
-        self.root_node = Node(state=state.duplicate())
+        self.nodes_count = 0
+        self.root_node = Node(state=state.duplicate(), expansion_index=self.nodes_count)
+        self.nodes_count += 1
         self.player = self.root_node.state.player_turn
         self.current_fm = 0
         self.current_iterations = 0
         self.current_time = 0
-        self.nodes_count = 0
+        
         start_time = time.time()
 
         while self.current_fm < self.max_fm and self.current_iterations < self.max_iterations and self.current_time < self.max_time:
@@ -218,6 +242,7 @@ class MCTS_Player(BaseAgent):
             "root_node_visits": str(self.root_node.visits),
             "root_node_avg_reward": self.root_node.total_reward / self.root_node.visits if self.root_node.visits > 0 else np.nan ,
             "nodes_count": self.nodes_count,
+            #"root_nodes_count": self.root_node.subtree_nodes(), 
         }
         for i,c in enumerate(self.root_node.children.values()):
             data_dict["action" + str(i)] = c.edge_action

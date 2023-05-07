@@ -86,7 +86,7 @@ class GameState(base_games.BaseGameState):
     First player maximises, second player minimises
     """
 
-    def __init__(self, n_players=1, function_index=0, splits=2, minimum_step=0.00001, max_turns=np.inf, for_test=False):
+    def __init__(self, n_players=1, function_index=0, splits=2, minimum_step=0.00001, max_turns=np.inf, for_test=False, name = None):
         """
         players: list of player objects (min len: 1, max len: 2)
         function: fitness method (takes a list of len="dimensions" as argument). If is an int, default functions will be used
@@ -108,6 +108,9 @@ class GameState(base_games.BaseGameState):
         self.for_test = for_test
         self.function = function_list[function_index]
         self.max_location = max_location_list[function_index]
+        if name is None:
+            self.name = "FOP_f" + str(function_index) + "_s" + str(splits) + "_p" + str(n_players)
+        else: self.name = name
          
     def set_initial_state(self) -> None:
         self.winner = None
@@ -127,7 +130,8 @@ class GameState(base_games.BaseGameState):
                         splits = self.splits, 
                         minimum_step = self.minimum_step, 
                         max_turns = self.max_turns, 
-                        for_test = self.for_test)
+                        for_test = self.for_test,
+                        name = self.name)
         Clone.available_actions = [a for a in self.available_actions]
         Clone.ranges = [[x for x in d] for d in self.ranges]
         Clone.winner = self.winner
@@ -198,6 +202,20 @@ class GameState(base_games.BaseGameState):
             features["Dimension"+str(d) + "_end"] = self.ranges[d][1]
         return features
     
+    def game_definition_data(self):
+        data = {
+            "Name": self.name,
+            "Function_index": self.function_index,
+            "Splits": self.splits,
+            "Minimum_step": self.minimum_step,
+            "Max_turns": self.max_turns,
+            "For_test": self.for_test,
+            "N_players": self.n_players,
+            "Max_location": str(self.max_location),
+            "Dimensions": str(self.dimensions),
+        }
+        return pd.DataFrame(data, index=[0])
+
     def logs_data(self):
         data = self.feature_vector()
         for i, player_reward in enumerate(self.reward):
@@ -209,7 +227,7 @@ class GameState(base_games.BaseGameState):
         return pd.DataFrame(data, index=[0])
 
     def __repr__(self):
-      return str(self.feature_vector())
+      return self.name + str(self.feature_vector())
 
              
             

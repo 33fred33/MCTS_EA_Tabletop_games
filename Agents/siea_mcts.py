@@ -53,6 +53,7 @@ class SIEA_MCTS_Player(MCTS_Player):
         self.evolution_logs = pd.DataFrame()
         self.hasGPTree = False
         self.GPTree = None
+        self.evolution_fm_calls = 0
         to_return = super().choose_action(state)
         return to_return
 
@@ -181,6 +182,7 @@ def ES_Search(RootNode, MCTS_Player):
             while not stateCopy.is_terminal:
                 stateCopy.make_action(mcts_player.default_policy.choose_action(stateCopy))
                 mcts_player.current_fm = mcts_player.current_fm + 1
+                mcts_player.evolution_fm_calls = mcts_player.evolution_fm_calls + 1
                 #stateCopy.make_action()
                 
             # result
@@ -374,6 +376,7 @@ def selBestCustom(individuals, MCTS_Player, generation, turn, fit_attr="fitness"
             'semantics_chose_randomly':isRandom,
             "semantics_L": L,
             "semantics_U": U,
+            "evolution_fm_calls":MCTS_Player.evolution_fm_calls
             }
     MCTS_Player._update_evolution_logs(pd.DataFrame(data, index=[0]))
 

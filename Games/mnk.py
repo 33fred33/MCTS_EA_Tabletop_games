@@ -28,6 +28,7 @@ class Action():
 
 class GameState(base_games.BaseGameState):
 
+    name:str
     m : int
     n : int
     k : int
@@ -41,10 +42,19 @@ class GameState(base_games.BaseGameState):
     def __init__(self, m=13, n=13, k=5,
                  losing_reward=-1,
                  draw_reward=0,
-                 winning_reward=1):
+                 winning_reward=1,
+                 name=None):
         assert m >= 3, "m must be >= 3"
         assert n >= 3, "n must be >= 3"
         assert k >= 3 and (k <= m or k <= n), "k must be >= 3 and < m or n"
+        if name is None:
+            if k==5:
+                self.name = "Gomoku"
+            if m==n and k==3 and m==3:
+                self.name = "TicTacToe"
+            else:
+                self.name = "mnk"
+        else: self.name = name
         self.m = m
         self.n = n 
         self.k = k
@@ -168,7 +178,8 @@ class GameState(base_games.BaseGameState):
                                   k=self.k, 
                                   losing_reward = self.losing_reward, 
                                   draw_reward = self.draw_reward, 
-                                  winning_reward = self.winning_reward)
+                                  winning_reward = self.winning_reward,
+                                  name = self.name)
         the_duplicate.turn = self.turn
         the_duplicate.winner = self.winner
         the_duplicate.reward = [s for s in self.reward]
@@ -183,6 +194,16 @@ class GameState(base_games.BaseGameState):
         fv = {k:v for k,v in self.board.items()}
         return fv
 
+    def game_definition_data(self):
+        data = {"m":self.m,
+                "n":self.n,
+                "k":self.k,
+                "losing_reward":self.losing_reward,
+                "draw_reward":self.draw_reward,
+                "winning_reward":self.winning_reward,
+                "name":self.name}
+        return pd.DataFrame(data, index=[0])
+
     def logs_data(self):
         data = self.feature_vector()#{k:[v] for k,v in self.feature_vector().items()}
         for i, player_reward in enumerate(self.reward):
@@ -193,4 +214,4 @@ class GameState(base_games.BaseGameState):
         return pd.DataFrame(data, index=[0])
 
     def __repr__(self):
-        return str(self.feature_vector())
+        return self.name + "_fv:" + str(self.feature_vector())

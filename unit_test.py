@@ -11,6 +11,7 @@ import Agents.random as arand
 import Agents.vanilla_mcts as mcts
 import Agents.siea_mcts as siea_mcts
 import Utilities.experiment_utils as eu
+import Utilities.logs_management as lm
 
 def game_can_end(state, random_seed, max_turns = 10000):
     for t in range(max_turns):
@@ -81,6 +82,29 @@ def test_mcts_tree(iterations=20, game_name = "mnk", agent_name = "mcts"):
     print(agent.view_mcts_tree())
     return agent
 
+def test_fm_calls(iterations = 20):
+    a1 = mcts.MCTS_Player(max_iterations=-1, rollouts = 1, logs=True)
+    a2 = siea_mcts.SIEA_MCTS_Player(max_iterations=-1, rollouts = 1, logs=True)
+    g = mnk.GameState(3,3,3)
+    g.set_initial_state()
+    a1.choose_action(g)
+    a2.choose_action(g)
+    for a in [a1,a2]:
+        a._update_choose_action_logs()
+        print(a.choose_action_logs)
+    for a in [a1,a2]:
+        for i in range(iterations):
+            a.iteration(a.root_node)
+            a._update_choose_action_logs()
+        print("agent:" + a.name)
+        print("fm calls: " + str(a.choose_action_logs["forward_model_calls"]))
+        print("tree:" + a.view_mcts_tree())
+        print("expanded_nodes: " + str(len(a.root_node.subtree_nodes())))
+
+def test_action_logs(agent, state):
+    agent.choose_action(state)
+    agent.choose_action_logs
+
 def run():
     #Database
     game_names = ["mnk", "fo1d1p", "fo1d2p", "fo2d1p", "fo2d2p"]
@@ -107,6 +131,11 @@ def run():
     print("Play_game logs:")
     print(test_game_player.logs_by_game)
     print("Experiment utils tests passed")
+
+    #Advanced tests
+    print("Advanced tests running")
+    print("FM calls tests running")
+    test_fm_calls()
 
 
    
