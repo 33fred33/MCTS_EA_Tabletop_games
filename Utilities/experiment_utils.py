@@ -214,9 +214,9 @@ def mcts_decision_analysis(game_state, mcts_player, logs_path, runs = 1, random_
         this_run_data = {
             "run": i,
             "eval_of_max_reward_leaf_node": game_state.function(max_reward_leaf_node.state.eval_point()),
-            "eval_point_of_max_reward_leaf_node": max_reward_leaf_node.state.eval_point(),
+            "eval_point_of_max_reward_leaf_node": str(max_reward_leaf_node.state.eval_point()),
             "eval_of_max_visits_leaf_node": game_state.function(max_reward_leaf_node.state.eval_point()),
-            "eval_point_of_max_visits_leaf_node": max_visits_leaf_node.state.eval_point(),
+            "eval_point_of_max_visits_leaf_node": str(max_visits_leaf_node.state.eval_point()),
             "terminals_count": terminal_count(mcts_player.root_node),
             "agent_expanded_nodes": mcts_player.nodes_count-1,
             "nodes_by_iteration" : (mcts_player.nodes_count-1)/mcts_player.current_iterations if mcts_player.current_iterations > 0 else np.nan,

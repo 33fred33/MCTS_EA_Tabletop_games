@@ -220,9 +220,11 @@ class GameState(base_games.BaseGameState):
         data = self.feature_vector()
         for i, player_reward in enumerate(self.reward):
             data["Score_p"+str(i)] = player_reward
+        for d in range(len(self.ranges)):
+            data["Eval_point_dimension"+str(d)] = self.eval_point()[d]
         data["Turn"] = self.turn
         data["Winner"] = self.winner
-        data["Eval_point"] = self.eval_point()
+        data["Eval_point"] = str(self.eval_point())
         data["N_available_actions"] = len(self.available_actions)
         return pd.DataFrame(data, index=[0])
 
