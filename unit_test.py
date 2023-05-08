@@ -3,6 +3,7 @@ import random as rd
 import time
 from collections import defaultdict
 import numpy as np
+import os
 
 #import Games.othello as oth
 import Games.mnk as mnk
@@ -105,6 +106,28 @@ def test_action_logs(agent, state):
     agent.choose_action(state)
     agent.choose_action_logs
 
+def test_fo_single_decision():
+    function_index = 1
+    runs = 3
+    random_seed = 1
+    iterations = 50
+    game_state = fo.GameState(function_index=function_index)
+    game_state.set_initial_state()
+    mcts_player = siea_mcts.SIEA_MCTS_Player(max_iterations=iterations, logs=True)
+    #mcts_player = mcts.MCTS_Player(max_iterations=iterations, logs=True)
+    action = eu.mcts_decision_analysis(game_state, 
+                                    mcts_player, 
+                                    os.path.join("Unit_test_outputs", "fo_single_decision_" + rd.randint(1,2**10), mcts_player.name), 
+                                    runs, 
+                                    random_seed)
+    mcts_player = mcts.MCTS_Player(max_iterations=iterations, logs=True)
+    #mcts_player = mcts.MCTS_Player(max_iterations=iterations, logs=True)
+    action = eu.mcts_decision_analysis(game_state, 
+                                    mcts_player, 
+                                    os.path.join("Unit_test_outputs", "fo_single_decision_" + rd.randint(1,2**10), mcts_player.name), 
+                                    runs, 
+                                    random_seed)
+
 def run():
     #Database
     game_names = ["mnk", "fo1d1p", "fo1d2p", "fo2d1p", "fo2d2p"]
@@ -136,6 +159,10 @@ def run():
     print("Advanced tests running")
     print("FM calls tests running")
     test_fm_calls()
+
+    #Test MCTS tree FO single decision
+    print("FO single decision tests running")
+    test_fo_single_decision()
 
 
    

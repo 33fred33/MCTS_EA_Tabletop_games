@@ -8,6 +8,7 @@ import numpy as np
 import random as rd
 import time
 import pandas as pd
+import Utilities.logs_management as lm
 
 class Node():
 
@@ -251,6 +252,10 @@ class MCTS_Player(BaseAgent):
         action_df = pd.DataFrame(data_dict, index=[0])
         action_df = pd.concat([action_df, self.agent_data()], axis=1)
         self.choose_action_logs = pd.concat([self.choose_action_logs, action_df], axis=1)
+
+    def dump_my_logs(self, path):
+        lm.dump_data(self.agent_data(), path, "agent_data.csv")
+        lm.dump_data(self.choose_action_logs, path, "choose_action_logs.csv")
 
     def __str__(self):
         return self.name

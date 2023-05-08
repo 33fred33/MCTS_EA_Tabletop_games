@@ -1,6 +1,7 @@
 import random as rd
 from Agents.base_agents import BaseAgent
 import pandas as pd
+import Utilities.logs_management as lm
 
 class RandomPlayer(BaseAgent):
     
@@ -17,5 +18,9 @@ class RandomPlayer(BaseAgent):
     def agent_data(self):
         return pd.DataFrame({"Player":str(self), "player_name":self.name}, index=[0])
     
+    def dump_my_logs(self, file_path, file_name):
+        for logs in [self.agent_data(), self.choose_action_logs]:
+            lm.dump_data(logs, file_path, file_name)
+
     def __str__(self):
         return self.name

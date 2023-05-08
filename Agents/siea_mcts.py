@@ -9,6 +9,8 @@ import os
 import pandas as pd
 from Agents.vanilla_mcts import MCTS_Player, Node
 from Agents.random import RandomPlayer
+import statistics as st
+import Utilities.logs_management as lm
 
 from deap import algorithms
 from deap import base
@@ -90,6 +92,33 @@ class SIEA_MCTS_Player(MCTS_Player):
         data_df = pd.DataFrame(data_dict, index=[0])
         return pd.concat([agent_data, data_df], axis=1)
 
+    def _update_choose_action_logs(self):
+        super()._update_choose_action_logs()
+        evolution_data = {}
+        evolution_data["evolution_fm_calls"] = self.evolution_fm_calls
+        evolution_data["avg_total_nodes"] = st.mean(self.evolution_logs["total_nodes"])
+        evolution_data["std_total_nodes"] = st.stdev(self.evolution_logs["total_nodes"])
+        evolution_data["avg_average_nodes"] = st.mean(self.evolution_logs["average_nodes"])
+        evolution_data["std_average_nodes"] = st.stdev(self.evolution_logs["average_nodes"])
+        evolution_data["avg_average_depth"] = st.mean(self.evolution_logs["average_depth"])
+        evolution_data["std_average_depth"] = st.stdev(self.evolution_logs["average_depth"])
+        evolution_data["avg_average_SSD"] = st.mean(self.evolution_logs["average_SSD"])
+        evolution_data["std_average_SSD"] = st.stdev(self.evolution_logs["average_SSD"])
+        collected_fitnesses = []
+        for c in self.evolution_logs.columns:
+            if "fitness_individual" in c:
+                collected_fitnesses = collected_fitnesses + list(self.evolution_logs[c])
+        evolution_data["avg_fitness"] = st.mean(collected_fitnesses)
+        evolution_data["std_fitness"] = st.stdev(collected_fitnesses)
+        evolution_data["semantics_usage_ratio"] = st.mean(self.evolution_logs["semantics_used"])
+        semantics_chose_randomly_filtered = [x for x in self.evolution_logs["semantics_chose_randomly"] if x is not None]
+        evolution_data["semantics_chose_randomly_ratio"] = st.mean(semantics_chose_randomly_filtered) if len(semantics_chose_randomly_filtered) > 0 else None
+        evolution_df = pd.DataFrame(evolution_data, index=[0])
+        self.choose_action_logs = pd.concat([self.choose_action_logs, evolution_df], axis=1)
+
+    def dump_my_logs(self, path):
+        super().dump_my_logs(path)
+        lm.dump_data(self.evolution_logs, path, "evolution_logs.csv")
 
 def randomC():
     c = rd.choice([0.25, 0.5, 1, 2, 3, 5, 7, 10])
@@ -327,8 +356,8 @@ def selBestCustom(individuals, MCTS_Player, generation, turn, fit_attr="fitness"
     Nodes = 0  # total number of nodes
     SSD = 0 # total semantic distance
     TotalDepth = 0  # add depth of each indivdual
-    L = 5
-    U = 10
+    L = MCTS_Player.es_semantics_l
+    U = MCTS_Player.es_semantics_u
     
     numInd = len(individuals)
     
@@ -372,8 +401,6 @@ def selBestCustom(individuals, MCTS_Player, generation, turn, fit_attr="fitness"
             'average_nodes':Nodes/numInd, 
             'average_depth': TotalDepth/(numInd), 
             'average_SSD':SSD/(numInd-1),
-            'fitnesses':str(fitnesses_list), 
-            'SSDs': str(SSD_list), 
             "semantics_used": semantics_used,
             'best_index_by_semantics':bestIndex, 
             'semantics_chose_randomly':isRandom,
@@ -381,6 +408,10 @@ def selBestCustom(individuals, MCTS_Player, generation, turn, fit_attr="fitness"
             "semantics_U": U,
             "evolution_fm_calls":MCTS_Player.evolution_fm_calls
             }
+    for i,v in enumerate(fitnesses_list):
+        data['fitness_individual'+str(i)] = v
+    for i,v in enumerate(SSD_list):
+        data['SSD_individual'+str(i)] = v
     MCTS_Player._update_evolution_logs(pd.DataFrame(data, index=[0]))
 
     return to_return

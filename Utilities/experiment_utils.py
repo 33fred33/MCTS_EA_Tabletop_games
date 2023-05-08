@@ -12,6 +12,9 @@ import Agents.random as arand
 import Agents.vanilla_mcts as mcts 
 import os
 import Utilities.logs_management as lm
+import plotly.graph_objects as go
+import plotly.express as px
+from plotly.subplots import make_subplots
 
 class GamePlayer():
     def __init__(self, game_state, players) -> None:
@@ -166,7 +169,6 @@ def tree_data(node, divisions=1):
 
     return tree_data
     
-
 def best_leaf_node(node, criteria="visits"):
     if node.state.is_terminal: return node
     else:
@@ -245,8 +247,144 @@ def mcts_decision_analysis(game_state, mcts_player, logs_path, runs = 1, random_
         "runs": runs,
     }
     global_data_df = pd.DataFrame(global_data, index=[0])
+    global_data_df = pd.concat([global_data_df, game_state.game_definition_data()], axis=1)
+    global_data_df = pd.concat([global_data_df, mcts_player.agent_data()], axis=1)
     lm.dump_data(global_data_df, file_path= logs_path, file_name="results.csv")
     lm.dump_data(logs_by_run, file_path= logs_path, file_name="logs_by_run.csv")
     lm.dump_data(tree_logs, file_path= logs_path, file_name="tree_data.csv")
-    lm.dump_data(mcts_player.agent_data(), file_path= logs_path, file_name="agent_data.csv")
+    #lm.dump_data(mcts_player.agent_data(), file_path= logs_path, file_name="agent_data.csv")
+    mcts_player.dump_my_logs(logs_path)
+    lm.dump_data(game_state.game_definition_data(), file_path= logs_path, file_name="game_definition_data.csv")
     return action
+
+def fo_tree_histogram(data_list, function, title, divisions, n_buckets = 100, subplot_titles=None, max_x_location = None, y_ref_value = None):
+    """
+    Returns a figure with histogram for each agent
+    Input: Array of dataframes, one for each agent.
+    """
+
+    if divisions in [2,3]: colors = ["#5B8C5A"
+                ,"#56638A"
+                , "#EC7316"]
+    n_plots = len(data_list)
+    even_spaces = 1/(n_plots+1)
+    row_heights = [even_spaces for _ in range(n_plots)] + [even_spaces]
+    fig = make_subplots(rows=n_plots+1
+                        ,cols=1
+                        ,shared_xaxes=True
+                        ,vertical_spacing=0.04
+                        ,row_heights=row_heights
+                        ,subplot_titles = subplot_titles
+                        , specs=[[{"secondary_y": True}] for _ in range(n_plots+1)]
+                        ,x_title="Central point of the state represented by each node."
+                        ,y_title='Total allocated nodes.'
+                        #,print_grid=True
+                        )
+
+    if function is not None:
+        x = np.linspace(0.001,1,5000)
+        y = [function([i]) for i in x]
+        fig.add_trace(go.Scatter(x=x, y=y, showlegend=False,marker={"color":"#000000"}),row=1,col=1)
+
+    show_legend = [True] + [False for _ in range(n_plots)]
+    for i,data in enumerate(data_list):
+        for div in range(divisions):
+
+            #Set name of the divisions
+            if div%divisions == 0: s1 = "{:2.0f}".format(100*(div/divisions))
+            else: s1 = "{:2.1f}".format(100*(div/divisions))
+            if (div+1)%divisions == 0: s2 = "{:2.0f}".format(100*((div+1)/divisions))
+            else: s2 = "{:2.1f}".format(100*((div+1)/divisions))
+            div_name = s1 + "% to " + s2 + "%"
+            temp_data = data.loc[data["id_block"]==div]
+            
+            #Set number of buckets as per arguments
+            if type(n_buckets) is list:
+                if i < len(n_buckets):
+                    n_bins = n_buckets[i]
+                else: print("reached i ", i, " when max is ", str(len(n_buckets)))
+            else: n_bins = n_buckets
+
+            #Add histogram
+            fig.add_trace(go.Histogram(x=temp_data.Eval_point_dimension0
+                    , nbinsx=n_bins
+                    , xbins={"start":0,"end":1,"size":1/n_bins}
+                    , name = div_name
+                    , showlegend=show_legend[i]
+                    ,legendrank = 1000-div
+                    
+                    #,histnorm="percent"
+                    , marker={"color":colors[div]})
+            ,row=i+2,col=1)
+            
+            #Add secondary trace in the same plot
+            #fig.add_trace(go.Scatter(x=x, y=y, showlegend=False,marker={"color":"black"}),row=i+1,col=1,secondary_y=True)
+
+    fig.update_layout(margin=dict(l=70, r=10, t=30, b=50)
+                        ,width=800
+                        ,height=900
+                        ,plot_bgcolor='rgba(0,0,0,0)'
+                        #,plot_bgcolor="lightgray"
+                        ,title={"text":title}
+                        ,barmode='stack'
+                        ,font = dict(family = "Arial", size = 14, color = "black")
+                        ,legend=dict(
+                            title = "Percentage of the total iterations"
+                            ,orientation="h"
+                            ,yanchor="top"
+                            ,y=-0.075
+                            #,xanchor="center"
+                            #,x=0.4
+                            ,bgcolor="white"#"lightgray"#"rgba(200, 255, 255, 0.8)"
+                            ,font = dict(family = "Arial", size = 14, color = "black")
+                            ,bordercolor="Black"
+                            ,borderwidth=2
+                            ,itemsizing='trace'
+                            ,itemwidth = 30
+                            ) 
+                        )
+    fig.update_xaxes(showline=True
+                        , linewidth=2
+                        , linecolor='black'
+                        , mirror=True
+                        )
+
+    fig.update_yaxes(showline=True
+                        ,mirror=True
+                        , linewidth=2
+                        , linecolor='black'
+                        , nticks=5
+                        #,tickmode = 'linear'
+                        ,tick0 = 0
+                        , gridcolor="#5B8C5A"
+                        , gridwidth=0.1
+                        #, dtick=5000
+                        ,showgrid=False
+                        )
+
+    #Add line where the maximum x is
+    list_of_shapes = []
+    if max_x_location is not None:
+        for subplot_n in range(1,n_plots+2):
+            yref = "y" + str(subplot_n*2)
+            list_of_shapes.append({'type': 'line','y0':0,'y1': 1,'x0':max_x_location, 
+                                        'x1':max_x_location,'xref':"x",'yref':yref,
+                                        'line': {'color': "#B10909",'width': 1.5, "dash":"dash"}})
+    
+    if y_ref_value is not None:
+            for subplot_n in range(1,n_plots+1):
+                yref = "y" + str(subplot_n*2-1)
+                list_of_shapes.append({'type': 'line','y0':y_ref_value,'y1': y_ref_value,'x0':0, 
+                                        'x1':1,'xref':"x",'yref':yref,
+                                        'line': {'color': "#4F5D2F",'width': 1, "dash":"dash"}})
+    
+    if list_of_shapes != []:
+        fig['layout'].update(shapes=list_of_shapes)
+        for subplot_n in range(1, n_plots+2):
+            yref = "y" + str(subplot_n)
+            fig.add_shape(go.layout.Shape(type="line", yref=yref, xref="x", x0=max_x_location, x1 = max_x_location, y0=0, y1=1, line=dict(color="red", width=1),),row=subplot_n, col=1)
+    
+    for subplot_n in range(1,n_plots+2):
+            fig['layout']['yaxis'+ str(subplot_n*2)]['visible'] = False
+
+    return fig

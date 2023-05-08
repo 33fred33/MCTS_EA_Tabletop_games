@@ -10,4 +10,6 @@ class BaseAgent(Protocol):
     name : str
     choose_action_logs : pd.DataFrame
     logs : bool
+    all_my_logs : List[pd.DataFrame]
     def choose_action(self, state: BaseGameState) -> None: raise NotImplementedError
+    def dump_my_logs(self, file_path, file_name): raise NotImplementedError
