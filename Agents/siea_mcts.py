@@ -19,9 +19,9 @@ from deap import tools
 from deap import gp
 
 # want to maximise the solution
-creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+creator.create("FitnessMax", base.Fitness, weights=(1.0,)) #This can be outside
 # define the structure of the programs 
-creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax) 
+creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)  #This can be outside
 
 class SIEA_MCTS_Player(MCTS_Player):
 
@@ -39,6 +39,7 @@ class SIEA_MCTS_Player(MCTS_Player):
                     es_generations = 20,
                     es_semantics_l = 5,
                     es_semantics_u = 10,
+                    unpaired_evolution = False,
                  logs = False):
         super().__init__(rollouts, c, max_fm, max_time, max_iterations, default_policy, name, logs)
         self.es_lambda = es_lambda
@@ -47,6 +48,7 @@ class SIEA_MCTS_Player(MCTS_Player):
         self.es_semantics_l = es_semantics_l
         self.es_semantics_u = es_semantics_u
         self.use_semantics = use_semantics
+        self.unpaired_evolution = unpaired_evolution
 
         self.GPTree = None
         self.hasGPTree = False
@@ -94,25 +96,30 @@ class SIEA_MCTS_Player(MCTS_Player):
 
     def _update_choose_action_logs(self):
         super()._update_choose_action_logs()
+        self.choose_action_logs["evolved_a_tree"] = self.hasGPTree
+
         evolution_data = {}
-        evolution_data["evolution_fm_calls"] = self.evolution_fm_calls
-        evolution_data["avg_total_nodes"] = st.mean(self.evolution_logs["total_nodes"])
-        evolution_data["std_total_nodes"] = st.stdev(self.evolution_logs["total_nodes"])
-        evolution_data["avg_average_nodes"] = st.mean(self.evolution_logs["average_nodes"])
-        evolution_data["std_average_nodes"] = st.stdev(self.evolution_logs["average_nodes"])
-        evolution_data["avg_average_depth"] = st.mean(self.evolution_logs["average_depth"])
-        evolution_data["std_average_depth"] = st.stdev(self.evolution_logs["average_depth"])
-        evolution_data["avg_average_SSD"] = st.mean(self.evolution_logs["average_SSD"])
-        evolution_data["std_average_SSD"] = st.stdev(self.evolution_logs["average_SSD"])
-        collected_fitnesses = []
-        for c in self.evolution_logs.columns:
-            if "fitness_individual" in c:
-                collected_fitnesses = collected_fitnesses + list(self.evolution_logs[c])
-        evolution_data["avg_fitness"] = st.mean(collected_fitnesses)
-        evolution_data["std_fitness"] = st.stdev(collected_fitnesses)
-        evolution_data["semantics_usage_ratio"] = st.mean(self.evolution_logs["semantics_used"])
-        semantics_chose_randomly_filtered = [x for x in self.evolution_logs["semantics_chose_randomly"] if x is not None]
-        evolution_data["semantics_chose_randomly_ratio"] = st.mean(semantics_chose_randomly_filtered) if len(semantics_chose_randomly_filtered) > 0 else None
+        if self.hasGPTree:
+            self.choose_action_logs["evolved_formula_str"] = str(self.GPTree)
+            evolution_data["evolution_fm_calls"] = self.evolution_fm_calls
+            evolution_data["avg_total_nodes"] = st.mean(self.evolution_logs["total_nodes"])
+            evolution_data["std_total_nodes"] = st.stdev(self.evolution_logs["total_nodes"])
+            evolution_data["avg_average_nodes"] = st.mean(self.evolution_logs["average_nodes"])
+            evolution_data["std_average_nodes"] = st.stdev(self.evolution_logs["average_nodes"])
+            evolution_data["avg_average_depth"] = st.mean(self.evolution_logs["average_depth"])
+            evolution_data["std_average_depth"] = st.stdev(self.evolution_logs["average_depth"])
+            evolution_data["avg_average_SSD"] = st.mean(self.evolution_logs["average_SSD"])
+            evolution_data["std_average_SSD"] = st.stdev(self.evolution_logs["average_SSD"])
+            collected_fitnesses = []
+            for c in self.evolution_logs.columns:
+                if "fitness_individual" in c:
+                    collected_fitnesses = collected_fitnesses + list(self.evolution_logs[c])
+            evolution_data["avg_fitness"] = st.mean(collected_fitnesses)
+            evolution_data["std_fitness"] = st.stdev(collected_fitnesses)
+            evolution_data["semantics_usage_ratio"] = st.mean(self.evolution_logs["semantics_used"])
+            semantics_chose_randomly_filtered = [x for x in self.evolution_logs["semantics_chose_randomly"] if x is not None]
+            evolution_data["semantics_chose_randomly_ratio"] = st.mean(semantics_chose_randomly_filtered) if len(semantics_chose_randomly_filtered) > 0 else None
+
         evolution_df = pd.DataFrame(evolution_data, index=[0])
         self.choose_action_logs = pd.concat([self.choose_action_logs, evolution_df], axis=1)
 
@@ -180,7 +187,6 @@ def ES_Search(RootNode, MCTS_Player):
     prims = pset.primitives[object]
     terminals = pset.terminals[object]
     
-
     
     #  register the generation functions into a Toolbox
     toolbox = base.Toolbox()
@@ -233,10 +239,70 @@ def ES_Search(RootNode, MCTS_Player):
         
         return fitness,
         
+    def evalTreeClone(individual, RootNode, mcts_player): #OK
+        # Transform the tree expression in a callable function
+        func = toolbox.compile(expr=individual)
+        
+        # from this point simulate the game 10 times appending the results
+        root_node = RootNode.duplicate()
+        results = []
+        for i in range(es_fitness_iterations):
+            # copy the state
+            #stateCopy = RootNode.state.duplicate()
+            node = root_node
+            
+            
+            #select method
+            while not node.can_be_expanded() and not node.state.is_terminal:
+            # child nodes
+            #v =  [func(Q,n,N) for Q,n,N in nodeValues]
+                if mcts_player.player == node.state.player_turn:
+                    nodeValues = {a:func(c.total_reward, c.visits, node.visits) for a,c in node.children.items()} # values of the nodes
+                else:
+                    nodeValues = {a:func(-c.total_reward, c.visits, node.visits) for a,c in node.children.items()} # values of the nodes
+            # get the values of the tree for each child node
+            
+                node = node.children[max(nodeValues, key=nodeValues.get)]
+            
+            # play the move of this child node
+                #node.state.make_action(node.edge_action)
+            
+            # expand
+            node = mcts_player.expansion(node, updates_data = False)
+            mcts_player.current_fm = mcts_player.current_fm + 1
+            mcts_player.evolution_fm_calls = mcts_player.evolution_fm_calls + 1
+
+            #rollout
+            stateCopy = node.state.duplicate()
+            while not stateCopy.is_terminal:
+                stateCopy.make_action(mcts_player.default_policy.choose_action(stateCopy))
+                mcts_player.current_fm = mcts_player.current_fm + 1
+                mcts_player.evolution_fm_calls = mcts_player.evolution_fm_calls + 1
+                #stateCopy.make_action()
+                
+            # result
+            reward = stateCopy.reward[mcts_player.player]
+            results.append(reward)
+            
+            #Backpropogate
+            while node.parent != None:  # backpropogate from the expected node and work back until reaches root_node
+                node.update(new_reward = reward)
+                node = node.parent
+            node.update(new_reward = reward)
+        
+        # semantics check  
+        individual.semantics = sorted(results)
+        
+        fitness = np.mean(results)
+        
+        return fitness,
 
     
     # register gp functions
-    toolbox.register("evaluate", evalTree, RootNode=RootNode, mcts_player=MCTS_Player)
+    if MCTS_Player.unpaired_evolution:
+        toolbox.register("evaluate", evalTreeClone, RootNode=RootNode, mcts_player=MCTS_Player)
+    else:
+        toolbox.register("evaluate", evalTree, RootNode=RootNode, mcts_player=MCTS_Player)
     toolbox.register("select", selBestCustom)
     toolbox.register("mate", gp.cxOnePoint)
     toolbox.register("expr_mut", gp.genFull, min_=1, max_=3)
@@ -412,6 +478,8 @@ def selBestCustom(individuals, MCTS_Player, generation, turn, fit_attr="fitness"
         data['fitness_individual'+str(i)] = v
     for i,v in enumerate(SSD_list):
         data['SSD_individual'+str(i)] = v
+    for i,ind in enumerate(individuals):
+        data['individual'+str(i)] = str(ind)
     MCTS_Player._update_evolution_logs(pd.DataFrame(data, index=[0]))
 
     return to_return

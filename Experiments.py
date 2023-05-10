@@ -19,7 +19,7 @@ import Utilities.logs_management as lm
 
 #FOP experiment
 logs_path = os.path.join("Outputs","FO_single_decision_5000")
-random_seed = 1
+random_seed = 10
 runs = 30
 iterations = 5000
 es_lambda = 4
@@ -43,19 +43,21 @@ agents = agents + [siea_mcts.SIEA_MCTS_Player(max_iterations=its,
                                         es_semantics_l=0.1,
                                         es_semantics_u = 0.5,
                                         name = "SIEA_MCTS_its" + str(its),
-                                         logs=True) for its in [iterations, iterations+(es_fitness_iterations*es_generations*es_lambda)]]
+                                         logs=True) for its in [iterations, iterations-(es_fitness_iterations*es_generations*es_lambda)]]
 agents = agents + [siea_mcts.SIEA_MCTS_Player(max_iterations=its, 
                                          es_lambda=es_lambda, 
                                          es_fitness_iterations=es_fitness_iterations,
                                         es_generations=es_generations,
                                         name = "EA_MCTS_its" + str(its),
                                         use_semantics=False,
-                                         logs=True) for its in [iterations, iterations+(es_fitness_iterations*es_generations*es_lambda)]]
+                                         logs=True) for its in [iterations, iterations-(es_fitness_iterations*es_generations*es_lambda)]]
                                         
 for function_index in function_indexes:
+    print("In function " + str(function_index))
     game_state = fo.GameState(function_index=function_index, n_players=1)
     game_state.set_initial_state()
     for agent in agents:
+        print("In agent " + agent.name)
         action = eu.mcts_decision_analysis(game_state = game_state,
                                              mcts_player = agent,
                                              logs_path = os.path.join(logs_path,"Function_" + str(function_index), agent.name),

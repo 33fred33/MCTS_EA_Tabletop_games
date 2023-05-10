@@ -22,6 +22,16 @@ class Node():
         self.total_reward = 0
         self.children = {} #action:node
 
+    def duplicate(self, parent = None):
+        #Duplicates node and subtree
+        clone_node = Node(state=self.state.duplicate(), parent=parent, edge_action=self.edge_action, expansion_index=self.expansion_index)
+        clone_node.visits = self.visits
+        clone_node.total_reward = self.total_reward
+        for action, child in self.children.items():
+            clone_child_node = child.duplicate(parent=clone_node)
+            clone_node.children[action] = clone_child_node
+        return clone_node
+
     def can_be_expanded(self):
         return len(self.state.available_actions) > len(self.children) and len(self.state.available_actions) > 0 and not self.state.is_terminal
 
@@ -153,7 +163,7 @@ class MCTS_Player(BaseAgent):
             node = max(node.children.values(), key= lambda x: self.UCB1(x))
         return node
 
-    def expansion(self, node) -> Node:
+    def expansion(self, node, updates_data = True) -> Node:
         #Returns a new node with a random action
 
         #Select random action
@@ -165,8 +175,10 @@ class MCTS_Player(BaseAgent):
 
         #Add node to tree
         new_node = node.add_child(action, duplicate_state, expansion_index=self.nodes_count)
-        self.nodes_count += 1
-        self.current_fm = self.current_fm + 1
+
+        if updates_data:
+            self.nodes_count += 1
+            self.current_fm = self.current_fm + 1
 
         return new_node
 

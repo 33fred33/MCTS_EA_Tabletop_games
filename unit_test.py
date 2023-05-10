@@ -34,6 +34,13 @@ def game_can_end_with_agents(state, agents, random_seed, max_turns = 10000):
 def test_game(state):
     #Run full games
     print("Testing game" + str(state))
+
+    #Test duplicate not paired
+    gs_dupe = state.duplicate()
+    gs_dupe.make_action(rd.choice(gs_dupe.available_actions))
+    assert state.turn != gs_dupe.turn
+
+    #Test game can end
     for rs in range(100):
         rd.seed(rs)
         duplicate_state = state.duplicate()
@@ -111,22 +118,37 @@ def test_fo_single_decision():
     runs = 3
     random_seed = 1
     iterations = 50
+    identifier = rd.randint(1,2**10)
     game_state = fo.GameState(function_index=function_index)
     game_state.set_initial_state()
     mcts_player = siea_mcts.SIEA_MCTS_Player(max_iterations=iterations, logs=True)
     #mcts_player = mcts.MCTS_Player(max_iterations=iterations, logs=True)
     action = eu.mcts_decision_analysis(game_state, 
                                     mcts_player, 
-                                    os.path.join("Unit_test_outputs", "fo_single_decision_" + rd.randint(1,2**10), mcts_player.name), 
+                                    os.path.join("Outputs","Unit_test_outputs", "fo_single_decision_" + str(identifier), mcts_player.name), 
                                     runs, 
                                     random_seed)
     mcts_player = mcts.MCTS_Player(max_iterations=iterations, logs=True)
     #mcts_player = mcts.MCTS_Player(max_iterations=iterations, logs=True)
     action = eu.mcts_decision_analysis(game_state, 
                                     mcts_player, 
-                                    os.path.join("Unit_test_outputs", "fo_single_decision_" + rd.randint(1,2**10), mcts_player.name), 
+                                    os.path.join("Outputs","Unit_test_outputs", "fo_single_decision_" + str(identifier), mcts_player.name), 
                                     runs, 
                                     random_seed)
+
+def test_tree_cloning():
+    state = produce_game("mnk")
+    agent = produce_agent("mcts")
+    agent.max_iterations = 100
+    _ = agent.choose_action(state)
+    node_clone = agent.root_node.duplicate()
+    node_clone.update(1)
+    assert agent.root_node.visits != node_clone.visits, "Node visits on the clone not different, both paired to the same node"
+    assert agent.root_node.total_reward != node_clone.total_reward, "Node total reward on the clone not different, both paired to the same node"
+    for key,child in agent.root_node.children.items():
+        child.update(1)
+        assert child.total_reward != node_clone.children[key].total_reward, "Child total reward on the clone not different, both paired to the same node"
+        assert child.visits != node_clone.children[key].visits, "Child visits on the clone not different, both paired to the same node"
 
 def run():
     #Database
@@ -159,6 +181,10 @@ def run():
     print("Advanced tests running")
     print("FM calls tests running")
     test_fm_calls()
+
+    #Test tree cloning
+    print("Tree cloning tests running")
+    test_tree_cloning()
 
     #Test MCTS tree FO single decision
     print("FO single decision tests running")

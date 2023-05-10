@@ -75,11 +75,12 @@ class GamePlayer():
             #Final logs by action
             final_logs_by_action = pd.concat([action_logs, game_logs], axis=1)
 
+
             #Final logs by game
             final_logs_by_game_dict = {}
             for i, player in enumerate(self.players):
                 final_logs_by_game_dict["Player_" + str(i)] = str(player)
-            final_logs_by_game_dict["Random_seed"] = random_seed
+            final_logs_by_game_dict["Game_random_seed"] = random_seed
             final_logs_by_game_dict["Game_index"] = self.games_count
             final_logs_by_game = pd.DataFrame(final_logs_by_game_dict, index=[0])
             final_logs_by_game = pd.concat([final_logs_by_game, gs.logs_data()], axis=1)
@@ -140,7 +141,18 @@ class GamePlayer():
         for i, p in enumerate(self.players):
             return_string += "_P" + str(i) + "_" + p.name
         return return_string
-#def play_match()
+#
+# 
+def play_match(agents, game_state, games, file_path = None, random_seed = None, logs = True):
+    "Plays a match between two agents"
+    if random_seed is None: random_seed = rd.randint(0, 2**32)
+    gp1 = GamePlayer(game_state, agents)
+    gp1.play_games(games, random_seed = random_seed, logs = logs)
+    gp2 = GamePlayer(game_state, agents[::-1])
+    gp2.play_games(games, random_seed = random_seed, logs = logs)
+    if file_path is not None:
+        gp1.save_data(os.path.join(file_path , gp1.players[0].name + "_vs_" + gp1.players[1].name))
+        gp2.save_data(os.path.join(file_path , gp2.players[0].name + "_vs_" + gp2.players[1].name))
 
 def tree_data(node, divisions=1):
     """Division method Options: percentage, best_changed
@@ -199,25 +211,32 @@ def terminal_count(node):
 
 def mcts_decision_analysis(game_state, mcts_player, logs_path, runs = 1, random_seed = None): #Requires generalisation. Hardcoded for FOP
     "Runs a game with mcts_player and saves the tree data to logs_path"
+
+    #Set random seed
     if random_seed is not None: rd.seed(random_seed)
     else: 
         random_seed = rd.randint(0, 2**32)
         rd.seed(random_seed)
+
+    #Initialise logs
     tree_logs = pd.DataFrame()
     logs_by_run = pd.DataFrame()
+
+    #Run game
     for i in range(runs):
         action = mcts_player.choose_action(game_state)
         run_data = tree_data(mcts_player.root_node, divisions=3)
+
+        #Add run data to logs
         run_data["run"] = [i for _ in range(len(run_data))]
         tree_logs = pd.concat([tree_logs, run_data], ignore_index=True)
-
         max_reward_leaf_node = best_leaf_node(mcts_player.root_node, "visits")
         max_visits_leaf_node = best_leaf_node(mcts_player.root_node, "avg_reward")
         this_run_data = {
             "run": i,
-            "eval_of_max_reward_leaf_node": game_state.function(max_reward_leaf_node.state.eval_point()),
+            "eval_of_max_reward_leaf_node": max_reward_leaf_node.state.function(max_reward_leaf_node.state.eval_point()),
             "eval_point_of_max_reward_leaf_node": str(max_reward_leaf_node.state.eval_point()),
-            "eval_of_max_visits_leaf_node": game_state.function(max_reward_leaf_node.state.eval_point()),
+            "eval_of_max_visits_leaf_node": max_visits_leaf_node.state.function(max_visits_leaf_node.state.eval_point()),
             "eval_point_of_max_visits_leaf_node": str(max_visits_leaf_node.state.eval_point()),
             "terminals_count": terminal_count(mcts_player.root_node),
             "agent_expanded_nodes": mcts_player.nodes_count-1,
@@ -228,6 +247,8 @@ def mcts_decision_analysis(game_state, mcts_player, logs_path, runs = 1, random_
         this_run_df = pd.concat([this_run_df, mcts_player.choose_action_logs], axis=1)
         this_run_df = pd.concat([this_run_df, mcts_player.root_node.node_data()], axis=1)
         logs_by_run = pd.concat([logs_by_run, this_run_df], ignore_index=True)
+
+    #Update global logs
     global_data = {
         "avg_eval_of_max_reward_leaf_node" : st.mean(logs_by_run["eval_of_max_reward_leaf_node"]),
         "std_eval_of_max_reward_leaf_node" : st.stdev(logs_by_run["eval_of_max_reward_leaf_node"]),
@@ -249,14 +270,17 @@ def mcts_decision_analysis(game_state, mcts_player, logs_path, runs = 1, random_
     global_data_df = pd.DataFrame(global_data, index=[0])
     global_data_df = pd.concat([global_data_df, game_state.game_definition_data()], axis=1)
     global_data_df = pd.concat([global_data_df, mcts_player.agent_data()], axis=1)
+
+    #Dump logs
     lm.dump_data(global_data_df, file_path= logs_path, file_name="results.csv")
     lm.dump_data(logs_by_run, file_path= logs_path, file_name="logs_by_run.csv")
     lm.dump_data(tree_logs, file_path= logs_path, file_name="tree_data.csv")
-    #lm.dump_data(mcts_player.agent_data(), file_path= logs_path, file_name="agent_data.csv")
     mcts_player.dump_my_logs(logs_path)
     lm.dump_data(game_state.game_definition_data(), file_path= logs_path, file_name="game_definition_data.csv")
     return action
 
+
+#Visualisation
 def fo_tree_histogram(data_list, function, title, divisions, n_buckets = 100, subplot_titles=None, max_x_location = None, y_ref_value = None):
     """
     Returns a figure with histogram for each agent
@@ -276,8 +300,8 @@ def fo_tree_histogram(data_list, function, title, divisions, n_buckets = 100, su
                         ,row_heights=row_heights
                         ,subplot_titles = subplot_titles
                         , specs=[[{"secondary_y": True}] for _ in range(n_plots+1)]
-                        ,x_title="Central point of the state represented by each node."
-                        ,y_title='Total allocated nodes.'
+                        ,x_title="Central point of the state represented by each node"
+                        ,y_title='Total allocated nodes'
                         #,print_grid=True
                         )
 
