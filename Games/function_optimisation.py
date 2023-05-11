@@ -225,6 +225,7 @@ class GameState(base_games.BaseGameState):
         data["Turn"] = self.turn
         data["Winner"] = self.winner
         data["Eval_point"] = str(self.eval_point())
+        data["Is_terminal"] = self.is_terminal
         data["N_available_actions"] = len(self.available_actions)
         return pd.DataFrame(data, index=[0])
 

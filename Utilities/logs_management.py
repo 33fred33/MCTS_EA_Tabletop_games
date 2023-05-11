@@ -2,7 +2,7 @@ from pandas import DataFrame
 import pandas as pd
 import os
 
-def dump_data(data:DataFrame, file_path:str, file_name:str) -> DataFrame:
+def dump_data(data:DataFrame, file_path:str, file_name:str, mode="w") -> DataFrame:
    """
    Stores the data in a csv file and returns an emptied DataFrame with the same columns as "data"
    File path should be full path: any/file.csv
@@ -22,7 +22,7 @@ def dump_data(data:DataFrame, file_path:str, file_name:str) -> DataFrame:
 
    #Create file
    file_path = os.path.join(file_path, file_name)
-   data.to_csv(file_path, mode="a", index=False, header = not os.path.exists(file_path))
+   data.to_csv(file_path, mode=mode, index=False, header = True)#not os.path.exists(file_path))
    return data.iloc[0:0]
 
 def combine_logs(output_path, output_name, files_paths = []):
@@ -40,8 +40,8 @@ def find_log_files(file_name, logs_path = None):
       print("Collecting logs from ", os.getcwd())
    file_path_list = []
    for root, dirs, files in os.walk(logs_path, topdown=False):
-      if dirs == []:
-         for file in files:
-               if file_name == file:
-                  file_path_list.append(os.path.join(root, file_name))
+      #if dirs == []:
+      for file in files:
+            if file_name == file:
+               file_path_list.append(os.path.join(root, file_name))
    return file_path_list

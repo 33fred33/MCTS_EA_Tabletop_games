@@ -69,12 +69,13 @@ class SIEA_MCTS_Player(MCTS_Player):
         while not node.can_be_expanded() and not node.state.is_terminal:
             if not self.hasGPTree: 
                 self.GPTree = ES_Search(node, self)
+                #print("Finished evolving")
                 self.hasGPTree = True
             #node = ES_Search(node, self)
             #node = max(node.children.values(), key= lambda x: self.UCB1(x))
             nodeValues = {a:self.GPTree(c.total_reward, c.visits, node.visits) for a,c in node.children.items()}
             node = node.children[max(nodeValues, key=nodeValues.get)] if MCTS_Player.player == node.state.player_turn else node.children[min(nodeValues, key=nodeValues.get)]
-
+            self.current_fm = self.current_fm + 1
         return node
     
     def _update_evolution_logs(self, data):
@@ -242,49 +243,45 @@ def ES_Search(RootNode, MCTS_Player):
     def evalTreeClone(individual, RootNode, mcts_player): #OK
         # Transform the tree expression in a callable function
         func = toolbox.compile(expr=individual)
-        
-        # from this point simulate the game 10 times appending the results
-        root_node = RootNode.duplicate()
+        node = RootNode.duplicate()
         results = []
         for i in range(es_fitness_iterations):
-            # copy the state
-            #stateCopy = RootNode.state.duplicate()
-            node = root_node
             
-            
-            #select method
+            ##### Selection #####
+
             while not node.can_be_expanded() and not node.state.is_terminal:
-            # child nodes
-            #v =  [func(Q,n,N) for Q,n,N in nodeValues]
                 if mcts_player.player == node.state.player_turn:
-                    nodeValues = {a:func(c.total_reward, c.visits, node.visits) for a,c in node.children.items()} # values of the nodes
+                    nodeValues = {a:func(c.total_reward, c.visits, node.visits) for a,c in node.children.items()}
                 else:
-                    nodeValues = {a:func(-c.total_reward, c.visits, node.visits) for a,c in node.children.items()} # values of the nodes
-            # get the values of the tree for each child node
-            
+                    nodeValues = {a:func(-c.total_reward, c.visits, node.visits) for a,c in node.children.items()}
                 node = node.children[max(nodeValues, key=nodeValues.get)]
             
-            # play the move of this child node
-                #node.state.make_action(node.edge_action)
-            
-            # expand
-            node = mcts_player.expansion(node, updates_data = False)
-            mcts_player.current_fm = mcts_player.current_fm + 1
-            mcts_player.evolution_fm_calls = mcts_player.evolution_fm_calls + 1
+            ##### Expansion #####
+            if node.can_be_expanded():
+                action = node.random_available_action()
+
+                #New state
+                duplicate_state = node.state.duplicate()
+                duplicate_state.make_action(action)
+
+                #Add node to tree
+                node = node.add_child(action, duplicate_state, expansion_index=None)
+
+                mcts_player.current_fm = mcts_player.current_fm + 1
+                mcts_player.evolution_fm_calls = mcts_player.evolution_fm_calls + 1
 
             #rollout
             stateCopy = node.state.duplicate()
             while not stateCopy.is_terminal:
-                stateCopy.make_action(mcts_player.default_policy.choose_action(stateCopy))
+                action = mcts_player.default_policy.choose_action(stateCopy)
+                stateCopy.make_action(action)
                 mcts_player.current_fm = mcts_player.current_fm + 1
                 mcts_player.evolution_fm_calls = mcts_player.evolution_fm_calls + 1
-                #stateCopy.make_action()
-                
             # result
             reward = stateCopy.reward[mcts_player.player]
             results.append(reward)
             
-            #Backpropogate
+            ##### Backpropagation #####
             while node.parent != None:  # backpropogate from the expected node and work back until reaches root_node
                 node.update(new_reward = reward)
                 node = node.parent
@@ -294,7 +291,6 @@ def ES_Search(RootNode, MCTS_Player):
         individual.semantics = sorted(results)
         
         fitness = np.mean(results)
-        
         return fitness,
 
     

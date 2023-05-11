@@ -28,7 +28,9 @@ def game_can_end_with_agents(state, agents, random_seed, max_turns = 10000):
             agent_names = [str(agent) for agent in agents]
             assert state.turn > 1, "Game ended in first turn. Random seed: " + str(random_seed) + ". Agents" + str(agent_names)
             return True
-        state.make_action(agents[state.player_turn].choose_action(state))
+        chosen_action = agents[state.player_turn].choose_action(state)
+        state.make_action(chosen_action)
+        #print("Turn", str(t))
     return False
 
 def test_game(state):
@@ -51,12 +53,12 @@ def test_agent(agent):
     state = produce_game("mnk")
     random_agent = produce_agent("random")
     print("Testing agent" + str(agent) + " as second player")
-    for rs in range(50):
+    for rs in range(50,100):
         rd.seed(rs)
         duplicate_state = state.duplicate()
         assert game_can_end_with_agents(duplicate_state, [random_agent, agent], rs), "Game did not end in 10000 turns. Random seed: " + str(rs) + ". Agent: " + str(agent) + "as second player"
     print("Testing agent" + str(agent) + " as first player")
-    for rs in range(50):
+    for rs in range(50,100):
         rd.seed(rs)
         duplicate_state = state.duplicate()
         assert game_can_end_with_agents(duplicate_state, [agent, random_agent], rs), "Game did not end in 10000 turns. Random seed: " + str(rs) + ". Agent: " + str(agent) + "as first player"
@@ -66,6 +68,7 @@ def produce_agent(name):
     if name=="random": return arand.RandomPlayer()
     elif name=="mcts": return mcts.MCTS_Player(max_iterations=100, logs=True)
     elif name=="siea_mcts": return siea_mcts.SIEA_MCTS_Player(max_iterations=100, logs=True)
+    elif name == "siea_mcts_unpaired": return siea_mcts.SIEA_MCTS_Player(max_iterations=100, logs=True, unpaired_evolution=True, name="siea_mcts_unpaired")
     else: print("Agent name not recognised")
 
 def produce_game(name):
@@ -113,26 +116,25 @@ def test_action_logs(agent, state):
     agent.choose_action(state)
     agent.choose_action_logs
 
-def test_fo_single_decision():
+def test_fo_single_decision(logs_path = ""):
     function_index = 1
     runs = 3
     random_seed = 1
     iterations = 50
-    identifier = rd.randint(1,2**10)
     game_state = fo.GameState(function_index=function_index)
     game_state.set_initial_state()
     mcts_player = siea_mcts.SIEA_MCTS_Player(max_iterations=iterations, logs=True)
     #mcts_player = mcts.MCTS_Player(max_iterations=iterations, logs=True)
     action = eu.mcts_decision_analysis(game_state, 
                                     mcts_player, 
-                                    os.path.join("Outputs","Unit_test_outputs", "fo_single_decision_" + str(identifier), mcts_player.name), 
+                                    os.path.join(logs_path, "fo_single_decision_", mcts_player.name), 
                                     runs, 
                                     random_seed)
     mcts_player = mcts.MCTS_Player(max_iterations=iterations, logs=True)
     #mcts_player = mcts.MCTS_Player(max_iterations=iterations, logs=True)
     action = eu.mcts_decision_analysis(game_state, 
                                     mcts_player, 
-                                    os.path.join("Outputs","Unit_test_outputs", "fo_single_decision_" + str(identifier), mcts_player.name), 
+                                    os.path.join(logs_path, "fo_single_decision_", mcts_player.name), 
                                     runs, 
                                     random_seed)
 
@@ -150,10 +152,14 @@ def test_tree_cloning():
         assert child.total_reward != node_clone.children[key].total_reward, "Child total reward on the clone not different, both paired to the same node"
         assert child.visits != node_clone.children[key].visits, "Child visits on the clone not different, both paired to the same node"
 
-def run():
+def run(game_names=None, agent_names=None):
     #Database
-    game_names = ["mnk", "fo1d1p", "fo1d2p", "fo2d1p", "fo2d2p"]
-    agent_names = ["random", "mcts", "siea_mcts"]
+    if game_names is None: game_names = ["mnk", "fo1d1p", "fo1d2p", "fo2d1p", "fo2d2p"]
+    if agent_names is None: agent_names = ["random", "mcts", "siea_mcts", "siea_mcts_unpaired"]
+
+    identifier = rd.randint(1,2**10)
+    print("Unit test identifier: " + str(identifier))
+    logs_path = os.path.join("Outputs","Unit_test_outputs",str(identifier))
 
     #Test game mnk
     print("Game tests running")
@@ -171,8 +177,8 @@ def run():
     print("Experiment utils tests running")
     state = produce_game("mnk")
     test_game_player = eu.GamePlayer(state, [produce_agent(agent_names[0]),produce_agent(agent_names[0])])
+    test_game_player.play_games(n_games=4, logs=True, logs_path=logs_path)
     test_game_player.play_game()
-    test_game_player.play_games(n_games=4)
     print("Play_game logs:")
     print(test_game_player.logs_by_game)
     print("Experiment utils tests passed")
@@ -188,7 +194,7 @@ def run():
 
     #Test MCTS tree FO single decision
     print("FO single decision tests running")
-    test_fo_single_decision()
+    test_fo_single_decision(logs_path=logs_path)
 
 
    

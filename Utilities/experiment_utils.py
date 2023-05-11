@@ -45,6 +45,7 @@ class GamePlayer():
                 p.logs = True
 
         #Play game
+        safe_count = 0
         while not gs.is_terminal:
             start_time = time.time()
             action = self.players[gs.player_turn].choose_action(gs)
@@ -52,23 +53,24 @@ class GamePlayer():
 
             #Update logs
             if logs:
-                #ref: https://stackoverflow.com/questions/24284342/insert-a-row-to-pandas-dataframe
-                #action_logs = pd.concat([action_logs, pd.DataFrame([[
-                #    str(self.players[gs.player_turn]),       #player
-                #    str(action),                        #"chosen_action"
-                #    selection_time,                      #"time"
-                #    self.games_count                   #"game_index"
-                #]], columns=action_logs.columns)], ignore_index=True)
                 action_log = self.players[gs.player_turn].choose_action_logs #Assumes this log is single row
                 action_log["game_index"] = self.games_count
                 action_log["selection_time"] = selection_time
                 action_log["returned_action"] = str(action)
                 action_log["pg_player"] = str(self.players[gs.player_turn])
-                #action
                 action_logs = pd.concat([action_logs, action_log], ignore_index=True)
                 game_logs = pd.concat([game_logs, gs.logs_data()], ignore_index=True)
 
-            #Make action    
+            #safety check|            
+            safe_count += 1
+            if safe_count > 1000: 
+                print("Safe count exceeded")
+                print(gs.logs_data())
+                print("Last action:" + str(action))
+                break
+            assert safe_count < 1000, "Safe count exceeded"
+
+            #Make action
             gs.make_action(action)
 
         if logs:
@@ -89,7 +91,9 @@ class GamePlayer():
             self._update_logs_by_game(final_logs_by_game)
             self._update_logs_by_action(final_logs_by_action)
             self._update_win_count(gs.winner)
-            self.games_count += 1
+        
+
+        self.games_count += 1
         return gs
 
     def _update_win_count(self, winner):
@@ -103,13 +107,18 @@ class GamePlayer():
     def _update_logs_by_action(self, logs):
         self.logs_by_action = pd.concat([self.logs_by_action, logs], ignore_index=True)
 
-    def play_games(self, n_games, random_seed = None, logs = True):
+    def play_games(self, n_games, random_seed = None, logs = True, logs_dispatch_after = 10, logs_path = None) -> None:
         "Plays n_games games"
         if random_seed is not None: rd.seed(random_seed)
         else: rd.seed(rd.randint(0, 2**32))
         seeds = rd.sample(range(0, 2**32), n_games)
         for i in range(n_games):
+            if logs: print("Playing game " + str(i) + " of " + str(n_games) + ", agents: " + str([a.name for a in self.players]))
             self.play_game(random_seed = seeds[i], logs = logs)
+            if logs:
+                if i % logs_dispatch_after == 0:
+                    self.save_data(logs_path)
+        if logs: self.save_data(logs_path)
 
     def save_data(self, file_path):
         "Saves logs to file_path"
@@ -118,11 +127,6 @@ class GamePlayer():
         lm.dump_data(self.results(), file_path= file_path, file_name="results.csv")
         for i,p in enumerate(self.players):
             lm.dump_data(p.agent_data(), file_path= file_path, file_name="p" + str(i) + "_data.csv")
-
-        #self.logs_by_game.to_csv(file_path + "_by_game.csv", mode="a", header = not os.path.exists(file_path))
-        #self.logs_by_action.to_csv(file_path + "_by_action.csv", mode="a", header = not os.path.exists(file_path))
-        #self.results().to_csv(file_path + "_results.csv", mode="a", header = not os.path.exists(file_path))
-        #, mode="a", header = not os.path.exists(file_path))
 
     def results(self):
         "Returns a dictionary with the results of the games played"
@@ -143,16 +147,26 @@ class GamePlayer():
         return return_string
 #
 # 
-def play_match(agents, game_state, games, file_path = None, random_seed = None, logs = True):
-    "Plays a match between two agents"
+def play_match(agents, game_state, games, file_path = None, random_seed = None, logs = True, logs_dispatch_after = 10) -> None:
+    """Plays a match between two agents
+    agents: list of agents
+    game_state: game state
+    games: number of games to play. Total played games will be 2*games
+    file_path: path to save logs
+    random_seed: random seed for the match
+    logs: if True, logs will be saved
+    logs_dispatch_after: number of games to play before saving logs (for security). Only used if logs is True. Logs will be stored at the end of the match anyway
+    """
     if random_seed is None: random_seed = rd.randint(0, 2**32)
-    gp1 = GamePlayer(game_state, agents)
-    gp1.play_games(games, random_seed = random_seed, logs = logs)
-    gp2 = GamePlayer(game_state, agents[::-1])
-    gp2.play_games(games, random_seed = random_seed, logs = logs)
-    if file_path is not None:
-        gp1.save_data(os.path.join(file_path , gp1.players[0].name + "_vs_" + gp1.players[1].name))
-        gp2.save_data(os.path.join(file_path , gp2.players[0].name + "_vs_" + gp2.players[1].name))
+    gp1 = GamePlayer(game_state.duplicate(), agents)
+    subfolder = "1_"+ gp1.players[0].name + "_vs_" + gp1.players[1].name
+    gp1.play_games(games, random_seed = random_seed, logs = logs, logs_path=os.path.join(file_path,subfolder), logs_dispatch_after=logs_dispatch_after)
+    gp2 = GamePlayer(game_state.duplicate(), agents[::-1])
+    subfolder = "2_"+ gp1.players[0].name + "_vs_" + gp1.players[1].name
+    gp2.play_games(games, random_seed = random_seed, logs = logs, logs_path=os.path.join(file_path,subfolder), logs_dispatch_after=logs_dispatch_after)
+    #if file_path is not None:
+    #    gp1.save_data(os.path.join(file_path , gp1.players[0].name + "_vs_" + gp1.players[1].name))
+    #    gp2.save_data(os.path.join(file_path , gp2.players[0].name + "_vs_" + gp2.players[1].name))
 
 def tree_data(node, divisions=1):
     """Division method Options: percentage, best_changed
@@ -247,6 +261,7 @@ def mcts_decision_analysis(game_state, mcts_player, logs_path, runs = 1, random_
         this_run_df = pd.concat([this_run_df, mcts_player.choose_action_logs], axis=1)
         this_run_df = pd.concat([this_run_df, mcts_player.root_node.node_data()], axis=1)
         logs_by_run = pd.concat([logs_by_run, this_run_df], ignore_index=True)
+        mcts_player.dump_my_logs(os.path.join(logs_path, "Run_" + str(i)))
 
     #Update global logs
     global_data = {
@@ -275,7 +290,6 @@ def mcts_decision_analysis(game_state, mcts_player, logs_path, runs = 1, random_
     lm.dump_data(global_data_df, file_path= logs_path, file_name="results.csv")
     lm.dump_data(logs_by_run, file_path= logs_path, file_name="logs_by_run.csv")
     lm.dump_data(tree_logs, file_path= logs_path, file_name="tree_data.csv")
-    mcts_player.dump_my_logs(logs_path)
     lm.dump_data(game_state.game_definition_data(), file_path= logs_path, file_name="game_definition_data.csv")
     return action
 

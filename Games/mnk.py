@@ -113,6 +113,7 @@ class GameState(base_games.BaseGameState):
 
     def _update_available_actions(self):
         self.available_actions = [a for a in self._available_actions[self.player_turn].values()]
+        #assert self.available_actions == [] and self.is_terminal, "No available actions after move and game is not terminal"
 
     def make_action(self, action):
 
@@ -180,6 +181,7 @@ class GameState(base_games.BaseGameState):
                                   draw_reward = self.draw_reward, 
                                   winning_reward = self.winning_reward,
                                   name = self.name)
+        the_duplicate.is_terminal = self.is_terminal
         the_duplicate.turn = self.turn
         the_duplicate.winner = self.winner
         the_duplicate.reward = [s for s in self.reward]
@@ -192,6 +194,7 @@ class GameState(base_games.BaseGameState):
 
     def feature_vector(self):
         fv = {k:v for k,v in self.board.items()}
+        fv["player_turn"] = self.player_turn
         return fv
 
     def game_definition_data(self):
@@ -210,6 +213,7 @@ class GameState(base_games.BaseGameState):
             data["Reward_p"+str(i)] = player_reward
         data["Turn"] = self.turn
         data["Winner"] = self.winner
+        data["Is_terminal"] = self.is_terminal
         data["N_available_actions"] = len(self.available_actions)
         return pd.DataFrame(data, index=[0])
 
