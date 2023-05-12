@@ -162,7 +162,7 @@ def play_match(agents, game_state, games, file_path = None, random_seed = None, 
     subfolder = "1_"+ gp1.players[0].name + "_vs_" + gp1.players[1].name
     gp1.play_games(games, random_seed = random_seed, logs = logs, logs_path=os.path.join(file_path,subfolder), logs_dispatch_after=logs_dispatch_after)
     gp2 = GamePlayer(game_state.duplicate(), agents[::-1])
-    subfolder = "2_"+ gp1.players[0].name + "_vs_" + gp1.players[1].name
+    subfolder = "2_"+ gp2.players[0].name + "_vs_" + gp2.players[1].name
     gp2.play_games(games, random_seed = random_seed, logs = logs, logs_path=os.path.join(file_path,subfolder), logs_dispatch_after=logs_dispatch_after)
     #if file_path is not None:
     #    gp1.save_data(os.path.join(file_path , gp1.players[0].name + "_vs_" + gp1.players[1].name))
