@@ -18,8 +18,8 @@ import Utilities.logs_management as lm
 
 
 #FOP experiment
-logs_path = os.path.join("Outputs","FO_single_decision_5000")
-random_seed = 10
+logs_path = os.path.join("Outputs","FO_single_decision")
+random_seed = 1234
 runs = 30
 iterations = 5000
 es_lambda = 4
@@ -32,10 +32,15 @@ function_indexes = []
 function_indexes = [0,1,2,3,4]
 #function_indexes += [5,6,7,8,9]
 
+#Calculations
+evolution_iterations = es_fitness_iterations*es_generations*es_lambda + es_fitness_iterations
+
+#"""
 agents = [mcts.MCTS_Player(max_iterations=iterations, 
                            logs=True, 
                            c=c, 
                            name = "MCTS_c" + c_names[i]) for i,c in enumerate(c_list)]
+#"""
 agents = agents + [siea_mcts.SIEA_MCTS_Player(max_iterations=its, 
                                          es_lambda=es_lambda, 
                                          es_fitness_iterations=es_fitness_iterations,
@@ -43,14 +48,14 @@ agents = agents + [siea_mcts.SIEA_MCTS_Player(max_iterations=its,
                                         es_semantics_l=0.1,
                                         es_semantics_u = 0.5,
                                         name = "SIEA_MCTS_its" + str(its),
-                                         logs=True) for its in [iterations, iterations-(es_fitness_iterations*es_generations*es_lambda)]]
+                                         logs=True) for its in [iterations, iterations-evolution_iterations]]
 agents = agents + [siea_mcts.SIEA_MCTS_Player(max_iterations=its, 
                                          es_lambda=es_lambda, 
                                          es_fitness_iterations=es_fitness_iterations,
                                         es_generations=es_generations,
                                         name = "EA_MCTS_its" + str(its),
                                         use_semantics=False,
-                                         logs=True) for its in [iterations, iterations-(es_fitness_iterations*es_generations*es_lambda)]]
+                                         logs=True) for its in [iterations, iterations-evolution_iterations]]
                                         
 for function_index in function_indexes:
     print("In function " + str(function_index))

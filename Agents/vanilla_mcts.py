@@ -122,8 +122,6 @@ class MCTS_Player(BaseAgent):
         
         start_time = time.time()
 
-        safety_iteration_count = 0
-        safety_reached = False
         while self.current_fm < self.max_fm and self.current_iterations < self.max_iterations and self.current_time < self.max_time:
             self.iteration(self.root_node)
 
@@ -131,20 +129,10 @@ class MCTS_Player(BaseAgent):
             self.current_iterations = self.current_iterations + 1
             self.current_time = time.time() - start_time
 
-            #Safety check
-            safety_iteration_count = safety_iteration_count + 1
-            if safety_iteration_count > 10000: #Safety check
-                print("Safety check triggered")
-                self._update_choose_action_logs()
-                self.view_mcts_tree(node = self.root_node)
-                
-                print(str(self.root_node.node_data()))
-                print(str(self.choose_action_logs))
-                self.root_node.state.view_game_state()
-                if safety_reached:
-                    assert False, "Safety check triggered"
-                safety_reached = True
-                safety_iteration_count = 0
+            #Check if iterations are still calling fm
+            if self.current_fm < self.current_iterations:
+                print("Warning: current_fm >= current_iterations. Fm calls:", self.current_fm, "Its:",self.current_iterations)
+                break
 
         if len(self.root_node.children) > 0:
             to_return = max(self.root_node.children.values(), key= lambda x: x.visits).edge_action
@@ -178,7 +166,7 @@ class MCTS_Player(BaseAgent):
         #Returns a node that can be expanded selecting by UCT
         assert node.state.is_terminal == False, "Selection called on a terminal node"
         while not node.can_be_expanded() and not node.state.is_terminal: 
-            node = max(node.children.values(), key= lambda x: self.UCB1(x))
+            node = max(node.children.values(), key= lambda x: self.UCB1(x, c=self.c))
             self.current_fm = self.current_fm + 1
         return node
 
