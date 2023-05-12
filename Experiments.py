@@ -18,7 +18,7 @@ import Utilities.logs_management as lm
 
 
 #FOP experiment
-logs_path = os.path.join("Outputs","FO_single_decision")
+logs_path = os.path.join("Outputs","FO_single_decision2")
 random_seed = 1234
 runs = 30
 iterations = 5000
@@ -35,12 +35,12 @@ function_indexes = [0,1,2,3,4]
 #Calculations
 evolution_iterations = es_fitness_iterations*es_generations*es_lambda + es_fitness_iterations
 
-#"""
+"""
 agents = [mcts.MCTS_Player(max_iterations=iterations, 
                            logs=True, 
                            c=c, 
                            name = "MCTS_c" + c_names[i]) for i,c in enumerate(c_list)]
-#"""
+"""
 agents = agents + [siea_mcts.SIEA_MCTS_Player(max_iterations=its, 
                                          es_lambda=es_lambda, 
                                          es_fitness_iterations=es_fitness_iterations,

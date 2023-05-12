@@ -209,7 +209,7 @@ def ES_Search(RootNode, MCTS_Player):
             
             # child nodes
             #v =  [func(Q,n,N) for Q,n,N in nodeValues]
-            nodeValues = {a:func(c.total_reward, c.visits, node.visits) for a,c in node.children.items()} # values of the nodes
+            nodeValues = {a:func(c.average_reward(), c.visits, node.visits) for a,c in node.children.items()} # values of the nodes
             # get the values of the tree for each child node
             
             node = node.children[max(nodeValues, key=nodeValues.get)] if mcts_player.player == node.state.player_turn else node.children[min(nodeValues, key=nodeValues.get)]

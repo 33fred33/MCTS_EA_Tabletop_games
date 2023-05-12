@@ -35,6 +35,9 @@ class Node():
     def can_be_expanded(self):
         return len(self.state.available_actions) > len(self.children) and len(self.state.available_actions) > 0 and not self.state.is_terminal
 
+    def average_reward(self):
+        return self.total_reward/self.visits if self.visits > 0 else np.nan
+
     def random_available_action(self):
         assert self.can_be_expanded(), "Node cannot be expanded"
         return rd.choice([a for a in self.state.available_actions if a not in self.children])

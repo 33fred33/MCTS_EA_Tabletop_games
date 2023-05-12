@@ -163,7 +163,7 @@ class GameState(base_games.BaseGameState):
                     self.reward[0] = p
                     self.reward[1] = 1 - p
          else: 
-             if self.n_players == 1: self.reward[0] = bernoulli.rvs(p) #for finding the actual max
+             if self.n_players == 1: self.reward[0] = bernoulli.rvs(p)
              else:
                     evaluation = bernoulli.rvs(p)
                     self.reward[0] = evaluation

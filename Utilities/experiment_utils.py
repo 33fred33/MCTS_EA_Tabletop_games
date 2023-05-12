@@ -12,9 +12,12 @@ import Agents.random as arand
 import Agents.vanilla_mcts as mcts 
 import os
 import Utilities.logs_management as lm
+
+
 import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
+import matplotlib.pyplot as plt
 
 class GamePlayer():
     def __init__(self, game_state, players) -> None:
@@ -350,8 +353,8 @@ def fo_tree_histogram(data_list, function, title, divisions, n_buckets = 100, su
                     , name = div_name
                     , showlegend=show_legend[i]
                     ,legendrank = 1000-div
-                    
-                    #,histnorm="percent"
+                    ,histfunc = "avg"
+                    #,histnorm="average"
                     , marker={"color":colors[div]})
             ,row=i+2,col=1)
             
@@ -426,3 +429,152 @@ def fo_tree_histogram(data_list, function, title, divisions, n_buckets = 100, su
             fig['layout']['yaxis'+ str(subplot_n*2)]['visible'] = False
 
     return fig
+
+def fo_tree_histogram_average(data_list, function, title, divisions, n_buckets = 100, subplot_titles=None, max_x_location = None, y_ref_value = None):
+    """
+    Returns a figure with histogram for each agent
+    Input: Array of dataframes, one for each agent.
+    """
+
+    if divisions in [2,3]: colors = ["#5B8C5A"
+                ,"#56638A"
+                , "#EC7316"]
+    n_plots = len(data_list)
+    even_spaces = 1/(n_plots+1)
+    row_heights = [even_spaces for _ in range(n_plots)] + [even_spaces]
+    fig = make_subplots(rows=n_plots+1
+                        ,cols=1
+                        ,shared_xaxes=True
+                        ,vertical_spacing=0.04
+                        ,row_heights=row_heights
+                        ,subplot_titles = subplot_titles
+                        , specs=[[{"secondary_y": True}] for _ in range(n_plots+1)]
+                        ,x_title="Central point of the state represented by each node"
+                        ,y_title='Average allocated nodes'
+                        #,print_grid=True
+                        )
+
+    if function is not None:
+        x = np.linspace(0.001,1,5000)
+        y = [function([i]) for i in x]
+        fig.add_trace(go.Scatter(x=x, y=y, showlegend=False,marker={"color":"#000000"}),row=1,col=1)
+
+    show_legend = [True] + [False for _ in range(n_plots)]
+
+    processed_data = {}
+    for i,data in enumerate(data_list):
+        for div in range(divisions):
+
+            #Set name of the divisions
+            if div%divisions == 0: s1 = "{:2.0f}".format(100*(div/divisions))
+            else: s1 = "{:2.1f}".format(100*(div/divisions))
+            if (div+1)%divisions == 0: s2 = "{:2.0f}".format(100*((div+1)/divisions))
+            else: s2 = "{:2.1f}".format(100*((div+1)/divisions))
+            div_name = s1 + "% to " + s2 + "%"
+            temp_data = data.loc[data["id_block"]==div]
+            
+            #Set number of buckets as per arguments
+            if type(n_buckets) is list:
+                if i < len(n_buckets):
+                    n_bins = n_buckets[i]
+                else: print("reached i ", i, " when max is ", str(len(n_buckets)))
+            else: n_bins = n_buckets
+
+            #Calc data
+            temp_data_by_run = []#temp_data.groupby("run")
+            for run in list(temp_data["run"].unique()):
+                this_run_data = temp_data.loc[temp_data["run"]==run]
+                temp_data_by_run.append( count_in_bins(this_run_data["Eval_point_dimension0"], n_bins))
+            bar_data = {k:st.mean([d[k] for d in temp_data_by_run]) for k in temp_data_by_run[0].keys()}
+
+            fig.add_trace(go.Bar(x=list(bar_data.keys()),
+                                y=list(bar_data.values()),
+                                offset=-1/(n_bins*2),
+                                width=1/(n_bins),
+                                name = div_name,
+                                showlegend=show_legend[i],
+                                legendrank = 1000-div,
+                                marker={"color":colors[div]},
+                                    ),row=i+2,col=1)
+
+    fig.update_layout(margin=dict(l=70, r=10, t=30, b=50)
+                        ,width=800
+                        ,height=900
+                        ,plot_bgcolor='rgba(0,0,0,0)'
+                        #,plot_bgcolor="lightgray"
+                        ,title={"text":title}
+                        ,barmode='stack'
+                        ,font = dict(family = "Arial", size = 14, color = "black")
+                        ,legend=dict(
+                            title = "Percentage of the total iterations"
+                            ,orientation="h"
+                            ,yanchor="top"
+                            ,y=-0.075
+                            #,xanchor="center"
+                            #,x=0.4
+                            ,bgcolor="white"#"lightgray"#"rgba(200, 255, 255, 0.8)"
+                            ,font = dict(family = "Arial", size = 14, color = "black")
+                            ,bordercolor="Black"
+                            ,borderwidth=2
+                            ,itemsizing='trace'
+                            ,itemwidth = 30
+                            ) 
+                        )
+    fig.update_xaxes(showline=True
+                        , linewidth=2
+                        , linecolor='black'
+                        , mirror=True
+                        )
+
+    fig.update_yaxes(showline=True
+                        ,mirror=True
+                        , linewidth=2
+                        , linecolor='black'
+                        , nticks=5
+                        #,tickmode = 'linear'
+                        ,tick0 = 0
+                        , gridcolor="#5B8C5A"
+                        , gridwidth=0.1
+                        #, dtick=5000
+                        ,showgrid=False
+                        )
+
+    #Add line where the maximum x is
+    list_of_shapes = []
+    if max_x_location is not None:
+        for subplot_n in range(1,n_plots+2):
+            yref = "y" + str(subplot_n*2)
+            list_of_shapes.append({'type': 'line','y0':0,'y1': 1,'x0':max_x_location, 
+                                        'x1':max_x_location,'xref':"x",'yref':yref,
+                                        'line': {'color': "#B10909",'width': 1.5, "dash":"dash"}})
+    
+    if y_ref_value is not None:
+            for subplot_n in range(1,n_plots+1):
+                yref = "y" + str(subplot_n*2-1)
+                list_of_shapes.append({'type': 'line','y0':y_ref_value,'y1': y_ref_value,'x0':0, 
+                                        'x1':1,'xref':"x",'yref':yref,
+                                        'line': {'color': "#4F5D2F",'width': 1, "dash":"dash"}})
+    
+    if list_of_shapes != []:
+        fig['layout'].update(shapes=list_of_shapes)
+        for subplot_n in range(1, n_plots+2):
+            yref = "y" + str(subplot_n)
+            fig.add_shape(go.layout.Shape(type="line", yref=yref, xref="x", x0=max_x_location, x1 = max_x_location, y0=0, y1=1, line=dict(color="red", width=1),),row=subplot_n, col=1)
+    
+    for subplot_n in range(1,n_plots+2):
+            fig['layout']['yaxis'+ str(subplot_n*2)]['visible'] = False
+
+    return fig
+
+def count_in_bins(x, n_bins, start=0, stop=1):
+    assert n_bins > 1, "n_bins must be greater than 1"
+    breaks = np.linspace(start=start, stop=stop, num=n_bins+1)
+    half_step = (breaks[1]-breaks[0])/2
+    counts = {i:0 for i in breaks[:-1]}
+    for xi in x:
+        for i in range(len(breaks)-1):
+            if xi >= breaks[i] and xi < breaks[i+1]:
+                counts[breaks[i]] += 1
+                break
+    count_data = {k+half_step:counts[k] for k in counts.keys()}
+    return count_data
