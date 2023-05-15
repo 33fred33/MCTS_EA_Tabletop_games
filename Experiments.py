@@ -18,9 +18,9 @@ import Utilities.logs_management as lm
 
 
 #FOP experiment
-logs_path = os.path.join("Outputs","FO_single_decision2")
+logs_path = os.path.join("Outputs","FO_single_decision3")
 random_seed = 1234
-runs = 30
+runs = 100
 iterations = 5000
 es_lambda = 4
 es_fitness_iterations = 30
@@ -29,13 +29,13 @@ c_list = [0.5, 1, math.sqrt(2),2,3]
 c_names = ["0_5", "1", "1_4142", "2", "3"]
 agents = []
 function_indexes = []
-function_indexes = [0,1,2,3,4]
+function_indexes = [2,3,4]
 #function_indexes += [5,6,7,8,9]
 
 #Calculations
 evolution_iterations = es_fitness_iterations*es_generations*es_lambda + es_fitness_iterations
 
-"""
+#"""
 agents = [mcts.MCTS_Player(max_iterations=iterations, 
                            logs=True, 
                            c=c, 
@@ -56,7 +56,7 @@ agents = agents + [siea_mcts.SIEA_MCTS_Player(max_iterations=its,
                                         name = "EA_MCTS_its" + str(its),
                                         use_semantics=False,
                                          logs=True) for its in [iterations, iterations-evolution_iterations]]
-                                        
+"""                                   
 for function_index in function_indexes:
     print("In function " + str(function_index))
     game_state = fo.GameState(function_index=function_index, n_players=1)

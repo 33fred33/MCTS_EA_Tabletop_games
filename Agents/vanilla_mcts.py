@@ -94,7 +94,7 @@ class Node():
 class MCTS_Player(BaseAgent):
 
     root_node : Node
-    player : int = 0
+    player : int
 
     def __init__(self, rollouts=1, c=math.sqrt(2), max_fm=np.inf, max_time=np.inf, max_iterations=np.inf, default_policy = RandomPlayer(), name = "Vanilla_MCTS", logs = False):
         assert max_fm != np.inf or max_time != np.inf or max_iterations != np.inf, "At least one of the stopping criteria must be set"
@@ -169,7 +169,7 @@ class MCTS_Player(BaseAgent):
         #Returns a node that can be expanded selecting by UCT
         assert node.state.is_terminal == False, "Selection called on a terminal node"
         while not node.can_be_expanded() and not node.state.is_terminal: 
-            node = max(node.children.values(), key= lambda x: self.UCB1(x, c=self.c))
+            node = max(node.children.values(), key= lambda x: self.tree_policy_formula(x))
             self.current_fm = self.current_fm + 1
         return node
 
@@ -216,7 +216,7 @@ class MCTS_Player(BaseAgent):
             node = node.parent
         node.update(reward)
         
-    def UCB1(self, node, c = math.sqrt(2)):
+    def tree_policy_formula(self, node):
         if node.visits == 0:
             return np.inf
         else:
@@ -226,16 +226,16 @@ class MCTS_Player(BaseAgent):
             reward = node.total_reward if node.parent.state.player_turn == self.player else -node.total_reward
 
             #UCB1
-            return reward / node.visits + c * math.sqrt(math.log(node.parent.visits) / node.visits)
+            return reward / node.visits + self.c * math.sqrt(math.log(node.parent.visits) / node.visits)
             
     def view_mcts_tree(self, node=None, depth=0):
         if node is None:
             node = self.root_node
         if depth != 0:
-            ucb = "{0:.3g}".format(self.UCB1(node))
+            ucb = "{0:.3g}".format(self.tree_policy_formula(node))
         else: ucb = "None"
 
-        my_string = f"\n{'--'*depth}{str(node)} ucb:" + str(ucb)
+        my_string = f"\n{'--'*depth}{str(node)}, tree_policy_formula:" + str(ucb)
 
         for child in node.children.values():
             my_string = my_string + self.view_mcts_tree(child, depth+1)
@@ -269,7 +269,8 @@ class MCTS_Player(BaseAgent):
         for i,c in enumerate(self.root_node.children.values()):
             data_dict["action" + str(i)] = c.edge_action
             data_dict["action" + str(i) + "_visits"] = c.visits
-            data_dict["action" + str(i) + "_avg_reward"] = c.total_reward / c.visits if c.visits > 0 else np.nan    
+            data_dict["action" + str(i) + "_avg_reward"] = c.total_reward / c.visits if c.visits > 0 else np.nan   
+            data_dict["action" + str(i) + "_tree_policy_formula"] = self.tree_policy_formula(c)
         action_df = pd.DataFrame(data_dict, index=[0])
         action_df = pd.concat([action_df, self.agent_data()], axis=1)
         self.choose_action_logs = pd.concat([self.choose_action_logs, action_df], axis=1)

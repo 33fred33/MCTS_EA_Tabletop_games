@@ -71,13 +71,20 @@ class SIEA_MCTS_Player(MCTS_Player):
                 self.GPTree = ES_Search(node, self)
                 #print("Finished evolving")
                 self.hasGPTree = True
-            #node = ES_Search(node, self)
-            #node = max(node.children.values(), key= lambda x: self.UCB1(x))
-            nodeValues = {a:self.GPTree(c.total_reward, c.visits, node.visits) for a,c in node.children.items()}
-            node = node.children[max(nodeValues, key=nodeValues.get)] if MCTS_Player.player == node.state.player_turn else node.children[min(nodeValues, key=nodeValues.get)]
+            node = max(node.children.values(), key= lambda x: self.tree_policy_formula(x))
             self.current_fm = self.current_fm + 1
         return node
     
+    def tree_policy_formula(self, node):
+        if not self.hasGPTree:
+            return super().tree_policy_formula(node) #UCB1
+        #Return Evolved formula
+        else:
+            if node.parent.state.player_turn == self.player:
+                return self.GPTree(node.average_reward(), node.visits, node.parent.visits) 
+            else:
+                return -self.GPTree(node.average_reward(), node.visits, node.parent.visits)
+
     def _update_evolution_logs(self, data):
         #Data us a dataframe.
         self.evolution_logs = pd.concat([self.evolution_logs, data], ignore_index=True)
