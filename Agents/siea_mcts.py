@@ -71,7 +71,7 @@ class SIEA_MCTS_Player(MCTS_Player):
                 self.GPTree = ES_Search(node, self)
                 #print("Finished evolving")
                 self.hasGPTree = True
-            node = max(node.children.values(), key= lambda x: self.tree_policy_formula(x))
+            node = self.best_child_by_tree_policy(node.children.values())
             self.current_fm = self.current_fm + 1
         return node
     
@@ -184,7 +184,8 @@ def ES_Search(RootNode, MCTS_Player):
     #pset.addPrimitive(operator.neg, 1)
 
     # rename the arguments
-    pset.addTerminal(randomC(), name='c')
+    random_C= randomC()
+    pset.addTerminal(random_C, name='c')
     pset.addTerminal(2)
     pset.renameArguments(ARG0='Q')
     pset.renameArguments(ARG1='n')
@@ -194,7 +195,7 @@ def ES_Search(RootNode, MCTS_Player):
     # primitives and terminals list
     prims = pset.primitives[object]
     terminals = pset.terminals[object]
-    
+    #t0 = Q, t1 = n, t2 = N, t3 = c, t4=2
     
     #  register the generation functions into a Toolbox
     toolbox = base.Toolbox()
@@ -218,6 +219,14 @@ def ES_Search(RootNode, MCTS_Player):
             #v =  [func(Q,n,N) for Q,n,N in nodeValues]
             nodeValues = {a:func(c.average_reward(), c.visits, node.visits) for a,c in node.children.items()} # values of the nodes
             # get the values of the tree for each child node
+            """
+            print("Sample child evaluation")
+            print("Individual: ", individual)
+            for c in node.children.values():
+                print("Function evaluation: ", func(c.average_reward(), c.visits, node.visits))
+                print("UCB1 evaluation: ", c.average_reward() + 2*random_C * math.sqrt(2*math.log(node.visits) / c.visits))
+                print("Child Q:", c.average_reward(), "Child n:", c.visits, "Child N:", node.visits, "C:", random_C)
+            """
             
             node = node.children[max(nodeValues, key=nodeValues.get)] if mcts_player.player == node.state.player_turn else node.children[min(nodeValues, key=nodeValues.get)]
             
@@ -352,12 +361,14 @@ def ES_Search(RootNode, MCTS_Player):
         data = {'evolved_formula_not_ucb1':(UCT_GP_Tree != hof[0]), 
                 'evolved_formula': formula, 
                 'evolved_formula_nodes':len(hof[0]), 
-                'evolved_formula_depth': (hof[0]).height }
+                'evolved_formula_depth': (hof[0]).height,
+                "evolved_c": random_C}
         #MCTS_Player._update_choose_action_logs(pd.DataFrame(data, index=[0])) 
         MCTS_Player.choose_action_logs = pd.concat([MCTS_Player.choose_action_logs, pd.DataFrame(data, index=[0])], axis=1)
         
         #print(f'Chosen formula: {formula}')
         return toolbox.compile(expr=hof[0])
+        #return toolbox.compile(UCT_GP_Tree)
 
 #################################################################################  
 

@@ -169,7 +169,7 @@ class MCTS_Player(BaseAgent):
         #Returns a node that can be expanded selecting by UCT
         assert node.state.is_terminal == False, "Selection called on a terminal node"
         while not node.can_be_expanded() and not node.state.is_terminal: 
-            node = max(node.children.values(), key= lambda x: self.tree_policy_formula(x))
+            node = self.best_child_by_tree_policy(node.children.values())
             self.current_fm = self.current_fm + 1
         return node
 
@@ -227,7 +227,24 @@ class MCTS_Player(BaseAgent):
 
             #UCB1
             return reward / node.visits + self.c * math.sqrt(math.log(node.parent.visits) / node.visits)
-            
+
+    def best_child_by_tree_policy(self, children):
+        """
+        Children is a list of nodes
+        """
+        assert len(children) > 0, "No children to choose from"
+        best_value = -np.inf
+        best_children = []
+        for child in children:
+            value = self.tree_policy_formula(child)
+            if value > best_value:
+                best_value = value
+                best_children = [child]
+            elif value == best_value:
+                best_children.append(child)
+        assert len(best_children) > 0, "No best children found"
+        return rd.choice(best_children)
+        
     def view_mcts_tree(self, node=None, depth=0):
         if node is None:
             node = self.root_node
