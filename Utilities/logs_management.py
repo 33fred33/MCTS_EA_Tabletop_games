@@ -38,6 +38,9 @@ def combine_logs(output_path, output_name, files_paths = []):
    return collected_data
 
 def find_log_files(file_name, logs_path = None):
+   """
+   Returns a list of paths to files with the name "file_name" in the directory and subfolders in "logs_path"
+   """
    if logs_path == None: 
       logs_path = os.getcwd()
       print("Collecting logs from ", os.getcwd())

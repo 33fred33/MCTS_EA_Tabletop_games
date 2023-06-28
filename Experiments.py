@@ -16,9 +16,10 @@ import Agents.siea_mcts as siea_mcts
 import Games.function_optimisation as fo
 import Utilities.logs_management as lm
 
+start_time = time.time()
 
 #FOP experiment
-logs_path = os.path.join("Outputs","FO_single_decision_definitive")
+logs_path = os.path.join("Outputs","FO_single_decision_new2")
 random_seed = 1234
 runs = 100
 iterations = 5000
@@ -35,6 +36,8 @@ function_indexes = [0,1,2,3,4]
 #Calculations
 evolution_iterations = es_fitness_iterations*es_generations*es_lambda + es_fitness_iterations
 
+#Agents
+
 """
 agents = [mcts.MCTS_Player(max_iterations=iterations, 
                            logs=True, 
@@ -49,14 +52,28 @@ agents = agents + [siea_mcts.SIEA_MCTS_Player(max_iterations=its,
                                         es_semantics_u = 0.5,
                                         name = "SIEA_MCTS_its" + str(its),
                                          logs=True) for its in [iterations, iterations-evolution_iterations]]
+
 agents = agents + [siea_mcts.SIEA_MCTS_Player(max_iterations=its, 
                                          es_lambda=es_lambda, 
                                          es_fitness_iterations=es_fitness_iterations,
                                         es_generations=es_generations,
+                                        es_semantics_l=0.1,
+                                        es_semantics_u = 0.5,
                                         name = "EA_MCTS_its" + str(its),
                                         use_semantics=False,
                                          logs=True) for its in [iterations, iterations-evolution_iterations]]
-                                 
+"""
+agents = agents + [siea_mcts.SIEA_MCTS_Player(max_iterations=its, 
+                                        unpaired_evolution = True, ###########################bewaree
+                                         es_lambda=es_lambda, 
+                                         es_fitness_iterations=es_fitness_iterations,
+                                        es_generations=es_generations,
+                                        es_semantics_l=0.1,
+                                        es_semantics_u = 0.5,
+                                        name = "SIEA_MCTSu_its" + str(its),
+                                         logs=True) for its in [iterations, iterations-evolution_iterations]]
+"""
+#Run                          
 for function_index in function_indexes:
     print("In function " + str(function_index))
     game_state = fo.GameState(function_index=function_index, n_players=1)
@@ -68,3 +85,21 @@ for function_index in function_indexes:
                                              logs_path = os.path.join(logs_path,"Function_" + str(function_index), agent.name),
                                              runs = runs,
                                              random_seed = random_seed)   
+        print("Time:" + str(time.time() - start_time))
+
+#Logs
+for file_name in ["evolution_logs.csv", "results.csv", "logs_by_run.csv"]:
+    file_path_list = lm.find_log_files(file_name, logs_path)
+    lm.combine_logs(logs_path, file_name, file_path_list)
+
+data = pd.read_csv(os.path.join(logs_path, "logs_by_run.csv"))
+evolved_formula_data = pd.DataFrame()
+for agent in data["Player"].unique():
+    if "EA" in agent:
+        for f_index in data["Function_index"].unique():
+            tdata = data[(data["Player"]==agent) & (data["Function_index"]==f_index)]
+            fa_data = eu.evolved_formula_analysis(tdata)
+            fa_data["Player"] = [agent]
+            fa_data["Function_index"] = [f_index]
+            evolved_formula_data = pd.concat([evolved_formula_data, fa_data])
+evolved_formula_data.to_csv(os.path.join(logs_path, "evolved_formula_analysis.csv"))

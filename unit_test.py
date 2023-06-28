@@ -141,7 +141,7 @@ def test_fo_single_decision(logs_path = ""):
 def test_tree_cloning():
     state = produce_game("mnk")
     agent = produce_agent("mcts")
-    agent.max_iterations = 100
+    agent.max_iterations = 200
     _ = agent.choose_action(state)
     node_clone = agent.root_node.duplicate()
     node_clone.update(1)
@@ -151,6 +151,29 @@ def test_tree_cloning():
         child.update(1)
         assert child.total_reward != node_clone.children[key].total_reward, "Child total reward on the clone not different, both paired to the same node"
         assert child.visits != node_clone.children[key].visits, "Child visits on the clone not different, both paired to the same node"
+
+    #Test expansion
+    nodes = [agent.root_node, node_clone]
+    safe_count = 0
+    while not nodes[0].can_be_expanded():
+        action = rd.choice([a for a in nodes[0].children.keys()])
+        #print("action", action)
+        nodes = [n.children[action] for n in nodes]
+        assert safe_count < 100, "Choosing actions failed"
+    assert nodes[0].can_be_expanded() == nodes[1].can_be_expanded(), "Node can still be expanded"
+    
+    safe_count = 0
+    while nodes[0].can_be_expanded():
+        assert nodes[1].can_be_expanded(), "Node clone cannot be expanded at start"
+        action = nodes[0].random_available_action()
+        duplicate_state = nodes[0].state.duplicate()
+        duplicate_state.make_action(action)
+        _ = nodes[0].add_child(action, duplicate_state, expansion_index=None)
+        assert nodes[1].can_be_expanded(), "Node clone suddenly cannot be expanded"
+        assert len(nodes[0].children) != len(nodes[1].children), "Node children not different, both paired to the same node"
+        assert safe_count < 100, "Expanding nodes failed"
+    assert nodes[0].can_be_expanded() == False, "Node can still be expanded"
+    assert nodes[0].can_be_expanded() != nodes[1].can_be_expanded(), "Node clone cannot be expanded"
 
 def run(game_names=None, agent_names=None):
     #Database

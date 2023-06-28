@@ -11,6 +11,7 @@ from Agents.vanilla_mcts import MCTS_Player, Node
 from Agents.random import RandomPlayer
 import statistics as st
 import Utilities.logs_management as lm
+import Utilities.experiment_utils as eu
 
 from deap import algorithms
 from deap import base
@@ -80,6 +81,8 @@ class SIEA_MCTS_Player(MCTS_Player):
             return super().tree_policy_formula(node) #UCB1
         #Return Evolved formula
         else:
+            if node.visits == 0:
+                return np.inf
             if node.parent.state.player_turn == self.player:
                 return self.GPTree(node.average_reward(), node.visits, node.parent.visits) 
             else:
@@ -215,10 +218,6 @@ def ES_Search(RootNode, MCTS_Player):
             stateCopy = RootNode.state.duplicate()
             node = RootNode
             
-            # child nodes
-            #v =  [func(Q,n,N) for Q,n,N in nodeValues]
-            nodeValues = {a:func(c.average_reward(), c.visits, node.visits) for a,c in node.children.items()} # values of the nodes
-            # get the values of the tree for each child node
             """
             print("Sample child evaluation")
             print("Individual: ", individual)
@@ -227,9 +226,16 @@ def ES_Search(RootNode, MCTS_Player):
                 print("UCB1 evaluation: ", c.average_reward() + 2*random_C * math.sqrt(2*math.log(node.visits) / c.visits))
                 print("Child Q:", c.average_reward(), "Child n:", c.visits, "Child N:", node.visits, "C:", random_C)
             """
+            def my_tree_policy_formula(node):
+                if node.visits == 0:
+                    return np.inf
+                if node.parent.state.player_turn == mcts_player.player:
+                    return func(node.average_reward(), node.visits, node.parent.visits) 
+                else:
+                    return -func(node.average_reward(), node.visits, node.parent.visits)
             
-            node = node.children[max(nodeValues, key=nodeValues.get)] if mcts_player.player == node.state.player_turn else node.children[min(nodeValues, key=nodeValues.get)]
-            
+            node = mcts_player.best_child_by_tree_policy(children = node.children.values(), my_tree_policy_formula = my_tree_policy_formula)
+
             # play the move of this child node
             stateCopy.make_action(node.edge_action)
             
@@ -259,18 +265,23 @@ def ES_Search(RootNode, MCTS_Player):
     def evalTreeClone(individual, RootNode, mcts_player): #OK
         # Transform the tree expression in a callable function
         func = toolbox.compile(expr=individual)
-        node = RootNode.duplicate()
+        root_node = RootNode.duplicate()
         results = []
+
+        def my_tree_policy_formula(node):
+            if node.visits == 0:
+                return np.inf
+            if node.parent.state.player_turn == mcts_player.player:
+                return func(node.average_reward(), node.visits, node.parent.visits) 
+            else:
+                return func(-node.average_reward(), node.visits, node.parent.visits)
+                
         for i in range(es_fitness_iterations):
             
+            node = root_node
             ##### Selection #####
-
             while not node.can_be_expanded() and not node.state.is_terminal:
-                if mcts_player.player == node.state.player_turn:
-                    nodeValues = {a:func(c.total_reward, c.visits, node.visits) for a,c in node.children.items()}
-                else:
-                    nodeValues = {a:func(-c.total_reward, c.visits, node.visits) for a,c in node.children.items()}
-                node = node.children[max(nodeValues, key=nodeValues.get)]
+                node = mcts_player.best_child_by_tree_policy(children = node.children.values(), my_tree_policy_formula = my_tree_policy_formula)
             
             ##### Expansion #####
             if node.can_be_expanded():
@@ -298,14 +309,14 @@ def ES_Search(RootNode, MCTS_Player):
             results.append(reward)
             
             ##### Backpropagation #####
-            while node.parent != None:  # backpropogate from the expected node and work back until reaches root_node
+            while node != None:  # backpropogate from the expected node and work back until reaches root_node
                 node.update(new_reward = reward)
                 node = node.parent
-            node.update(new_reward = reward)
         
         # semantics check  
         individual.semantics = sorted(results)
         
+        #fitness = eu.best_leaf_node(root_node, criteria="avg_reward").average_reward() #Only works for one player games
         fitness = np.mean(results)
         return fitness,
 
@@ -330,7 +341,7 @@ def ES_Search(RootNode, MCTS_Player):
     UCT_GP_Tree = creator.Individual(UCT_formula)
 
     
-    # if MCTS already has a gpTree, return the best child node
+    # if MCTS already has a gpTree, return the best child nodenode
     if hasGPTree:
         func = toolbox.compile(expr=GPTree)
         nodeValues = {a:func(c.total_reward, c.visits, RootNode.visits) for a,c in RootNode.children.items()}

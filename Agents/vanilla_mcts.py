@@ -228,15 +228,18 @@ class MCTS_Player(BaseAgent):
             #UCB1
             return reward / node.visits + self.c * math.sqrt(math.log(node.parent.visits) / node.visits)
 
-    def best_child_by_tree_policy(self, children):
+    def best_child_by_tree_policy(self, children, my_tree_policy_formula=None):
         """
         Children is a list of nodes
+        Returns a node with the maximum tree policy value. If there are more than one, returns a random one
         """
         assert len(children) > 0, "No children to choose from"
+        if my_tree_policy_formula is None: 
+            my_tree_policy_formula = self.tree_policy_formula
         best_value = -np.inf
         best_children = []
         for child in children:
-            value = self.tree_policy_formula(child)
+            value = my_tree_policy_formula(child)
             if value > best_value:
                 best_value = value
                 best_children = [child]

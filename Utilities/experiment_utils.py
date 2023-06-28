@@ -35,10 +35,13 @@ class GamePlayer():
         gs = self.game_state.duplicate()
 
         #Set random seed
-        if random_seed is not None: rd.seed(random_seed)
+        if random_seed is not None: 
+            rd.seed(random_seed)
+            np.random.seed(random_seed)
         else: 
             random_seed = rd.randint(0, 2**32)
             rd.seed(random_seed)
+            np.random.seed(random_seed)
 
         #Set logs
         action_logs = pd.DataFrame()
@@ -85,8 +88,8 @@ class GamePlayer():
             final_logs_by_game_dict = {}
             for i, player in enumerate(self.players):
                 final_logs_by_game_dict["Player_" + str(i)] = str(player)
-            final_logs_by_game_dict["Game_random_seed"] = random_seed
-            final_logs_by_game_dict["Game_index"] = self.games_count
+            final_logs_by_game_dict["game_random_seed"] = random_seed
+            final_logs_by_game_dict["game_index"] = self.games_count
             final_logs_by_game = pd.DataFrame(final_logs_by_game_dict, index=[0])
             final_logs_by_game = pd.concat([final_logs_by_game, gs.logs_data()], axis=1)
             
@@ -112,8 +115,13 @@ class GamePlayer():
 
     def play_games(self, n_games, random_seed = None, logs = True, logs_dispatch_after = 10, logs_path = None) -> None:
         "Plays n_games games"
-        if random_seed is not None: rd.seed(random_seed)
-        else: rd.seed(rd.randint(0, 2**32))
+        if random_seed is not None: 
+            rd.seed(random_seed)
+            np.random.seed(random_seed)
+        else: 
+            random_seed = rd.randint(0, 2**32)
+            rd.seed(random_seed)
+            np.random.seed(random_seed)
         seeds = rd.sample(range(0, 2**32), n_games)
         for i in range(n_games):
             if logs: print("Playing game " + str(i) + " of " + str(n_games) + ", agents: " + str([a.name for a in self.players]))
@@ -199,6 +207,7 @@ def tree_data(node, divisions=1):
     return tree_data
     
 def best_leaf_node(node, criteria="visits"):
+    assert isinstance(node, mcts.Node), "node must be a mcts.Node"
     if node.state.is_terminal: return node
     else:
         max_value = -np.inf
@@ -229,18 +238,22 @@ def terminal_count(node):
 def mcts_decision_analysis(game_state, mcts_player, logs_path, runs = 1, random_seed = None): #Requires generalisation. Hardcoded for FOP
     "Runs a game with mcts_player and saves the tree data to logs_path"
 
-    #Set random seed
-    if random_seed is not None: rd.seed(random_seed)
-    else: 
-        random_seed = rd.randint(0, 2**32)
-        rd.seed(random_seed)
-
     #Initialise logs
     tree_logs = pd.DataFrame()
     logs_by_run = pd.DataFrame()
 
     #Run game
     for i in range(runs):
+
+        #Set random seed
+        if random_seed is not None: 
+            rd.seed(random_seed + i)
+            np.random.seed(random_seed + i)
+        else: 
+            random_seed = rd.randint(0, 2**32)
+            rd.seed(random_seed)
+            np.random.seed(random_seed)
+
         action = mcts_player.choose_action(game_state)
         run_data = tree_data(mcts_player.root_node, divisions=3)
 
@@ -258,6 +271,7 @@ def mcts_decision_analysis(game_state, mcts_player, logs_path, runs = 1, random_
             "terminals_count": terminal_count(mcts_player.root_node),
             "agent_expanded_nodes": mcts_player.nodes_count-1,
             "nodes_by_iteration" : (mcts_player.nodes_count-1)/mcts_player.current_iterations if mcts_player.current_iterations > 0 else np.nan,
+            "run_random_seed": random_seed
         }
         this_run_df = pd.DataFrame(this_run_data, index=[0])
         this_run_df = pd.concat([this_run_df, game_state.game_definition_data()], axis=1)
@@ -295,6 +309,55 @@ def mcts_decision_analysis(game_state, mcts_player, logs_path, runs = 1, random_
     lm.dump_data(tree_logs, file_path= logs_path, file_name="tree_data.csv")
     lm.dump_data(game_state.game_definition_data(), file_path= logs_path, file_name="game_definition_data.csv")
     return action
+
+def evolved_formula_analysis(data):
+   output={}
+   for terminal in ["n","N","Q"]:
+      terminal_count = 0
+      all_appareances = []
+      for f in data["evolved_formula"]:
+         appearances = f.count(terminal)
+         if terminal == "n":
+            appearances -= f.count("ln")
+         if appearances > 0:
+            terminal_count += 1
+         all_appareances.append(appearances)
+      output["Avg_per_formula_" + terminal] = np.mean(all_appareances)
+      output["Std_per_formula_" + terminal] = np.std(all_appareances)
+      output["Appearance_rate_" + terminal] = terminal_count/len(data)
+
+   trivial_stuck = 0 #no Q or n
+   trivial_random = 0 #none
+   trivial_greedy = 0 #Q no n
+   for f in data["evolved_formula"]:
+      if "Q" not in f:
+         if f.count("n") - f.count("ln") < 1:
+            trivial_random += 1
+         else: trivial_stuck += 1
+      else:
+         if f.count("n") - f.count("ln") < 1:
+            trivial_greedy += 1
+
+   output["Trivial_stuck"] = trivial_stuck/len(data)
+   output["Trivial_random"] = trivial_random/len(data)
+   output["Trivial_greedy"] = trivial_greedy/len(data)
+   output["No_change"] = len([x for x in data["evolved_formula_not_ucb1"] if not x])/len(data)
+   #print(data["evolved_formula_not_ucb1"].unique())
+   output["Non_Trivial"] = 1-output["Trivial_stuck"] - output["Trivial_random"] - output["Trivial_greedy"]
+
+   output["Avg_nodes_" + terminal] = np.mean(data["evolved_formula_nodes"])
+   output["Std_nodes_" + terminal] = np.std(data["evolved_formula_nodes"])
+   output["Avg_depth_" + terminal] = np.mean(data["evolved_formula_depth"])
+   output["Std_depth_" + terminal] = np.std(data["evolved_formula_depth"])
+
+   output["More_than_10"] = len(data.loc[data["agent_expanded_nodes"] >= 0.1*data["max_iterations"]])/len(data)
+   output["More_than_50"] = len(data.loc[data["agent_expanded_nodes"] >= 0.5*data["max_iterations"]])/len(data)
+   output["Less_than_4_nodes_formula"] = len(data.loc[data["evolved_formula_nodes"] < 4])/len(data)
+   
+
+
+   output_df = pd.DataFrame({k:[v] for k,v in output.items()})
+   return output_df
 
 
 #Visualisation
