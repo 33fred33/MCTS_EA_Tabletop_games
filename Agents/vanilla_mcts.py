@@ -111,6 +111,7 @@ class MCTS_Player(BaseAgent):
         self.name = name
         self.logs = logs
         self.choose_action_logs = pd.DataFrame()
+        self.isAIPlayer = True
 
     def choose_action(self, state):
 

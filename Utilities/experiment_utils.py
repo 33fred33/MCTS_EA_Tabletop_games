@@ -67,7 +67,7 @@ class GamePlayer():
                 action_logs = pd.concat([action_logs, action_log], ignore_index=True)
                 game_logs = pd.concat([game_logs, gs.logs_data()], ignore_index=True)
 
-            #safety check|            
+            #safety check      
             safe_count += 1
             if safe_count > 1000: 
                 print("Safe count exceeded")

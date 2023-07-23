@@ -3,6 +3,18 @@ from enum import Enum, auto
 from typing import List
 import pandas as pd
 
+class RandomEvent():
+    def __init__(self, id, probability=None):
+        self.probability = probability
+        self.id = id
+
+    def duplicate(self):
+        return RandomEvent(self.id, self.probability)
+            
+    def __repr__(self):
+        String = "RandomEvent ID"+str(self.id)+"Prob"+str(self.probability)
+        return String
+
 class BaseGameState(Protocol):
 
     def make_action(self, action) -> None: raise NotImplementedError
@@ -13,7 +25,7 @@ class BaseGameState(Protocol):
 
     def winner(self) -> int: raise NotImplementedError
 
-    def feature_vector(self) -> List: raise NotImplementedError
+    def feature_vector(self) -> dict: raise NotImplementedError
 
     def logs_data(self) -> pd.DataFrame: raise NotImplementedError
 
@@ -25,3 +37,10 @@ class BaseGameState(Protocol):
     turn:int #begins in 1
     is_terminal:bool #Default:False. Updated to True when the game is over
     name:str #Name of the game
+    losing_reward:float #Default:0. Reward given to a player when he loses
+    draw_reward:float #Default:0. Reward given to a player when the game ends in a draw
+    winning_reward:float #Default:1. Reward given to a player when he wins
+
+    #For random games:
+    random_events:List #List[RandomEvent] -> listed in case they were sequencial
+

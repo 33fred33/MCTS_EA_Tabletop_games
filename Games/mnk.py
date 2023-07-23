@@ -2,6 +2,7 @@ from typing import List, Tuple
 import numpy as np
 import Games.base_games as base_games
 import pandas as pd
+import random as rd
 
 class Action():
 

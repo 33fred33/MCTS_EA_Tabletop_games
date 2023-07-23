@@ -21,6 +21,8 @@ start_time = time.time()
 #FOP experiment
 logs_path = os.path.join("Outputs","FO_single_decision_new2")
 random_seed = 1234
+np.random.seed(random_seed)
+rd.seed(random_seed)
 runs = 100
 iterations = 5000
 es_lambda = 4

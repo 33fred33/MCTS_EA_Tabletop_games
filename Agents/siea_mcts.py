@@ -55,6 +55,7 @@ class SIEA_MCTS_Player(MCTS_Player):
         self.hasGPTree = False
         self.evolution_logs = pd.DataFrame()
         self.choose_action_logs = pd.DataFrame()
+        self.isAIPlayer = True
 
     def choose_action(self, state):
         self.evolution_logs = pd.DataFrame()

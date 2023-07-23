@@ -13,6 +13,8 @@ import Agents.vanilla_mcts as mcts
 import Agents.siea_mcts as siea_mcts
 import Utilities.experiment_utils as eu
 import Utilities.logs_management as lm
+import Games.chess_64 as chess_64
+import Games.Carcassonne.Carcassonne as carc
 
 def game_can_end(state, random_seed, max_turns = 10000):
     for t in range(max_turns):
@@ -78,6 +80,8 @@ def produce_game(name):
     elif name=="fo1d2p": state = fo.GameState(function_index=0, n_players=2)
     elif name=="fo2d1p": state = fo.GameState(function_index=5, n_players=1)
     elif name=="fo2d2p": state = fo.GameState(function_index=5, n_players=2)
+    elif name=="chess": state = chess_64.GameState()
+    elif name=="carcassonne": state = carc.CarcassonneState()
     else: print("Game name not recognised")
     state.set_initial_state()
     return state
@@ -177,7 +181,7 @@ def test_tree_cloning():
 
 def run(game_names=None, agent_names=None):
     #Database
-    if game_names is None: game_names = ["mnk", "fo1d1p", "fo1d2p", "fo2d1p", "fo2d2p"]
+    if game_names is None: game_names = ["mnk", "fo1d1p", "fo1d2p", "fo2d1p", "fo2d2p", "carcassonne"]#, "chess"]
     if agent_names is None: agent_names = ["random", "mcts", "siea_mcts", "siea_mcts_unpaired"]
 
     identifier = rd.randint(1,2**10)

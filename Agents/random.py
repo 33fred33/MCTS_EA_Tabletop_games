@@ -11,6 +11,7 @@ class RandomPlayer(BaseAgent):
         self.name = name
         self.logs = logs
         self.choose_action_logs = pd.DataFrame({"Player":self.name, "player_name":self.name}, index=[0])
+        self.isAIPlayer = True
     
     def choose_action(self, state): #game interface dependencies
         return rd.choice(state.available_actions)
