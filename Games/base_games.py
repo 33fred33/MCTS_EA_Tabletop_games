@@ -4,16 +4,26 @@ from typing import List
 import pandas as pd
 
 class RandomEvent():
-    def __init__(self, id, probability=None):
+    def __init__(self, id, probability=None, event_type = None):
         self.probability = probability
         self.id = id
+        self.event_type = event_type
 
     def duplicate(self):
-        return RandomEvent(self.id, self.probability)
+        return RandomEvent(self.id, self.probability, self.event_type)
             
     def __repr__(self):
-        String = "RandomEvent ID"+str(self.id)+"Prob"+str(self.probability)
+        String = "RandomEvent ID"+str(self.id)+"Prob"+str(self.probability)+"Type"+str(self.event_type)
         return String
+    
+    def __eq__(self, other: object) -> bool:
+        if self.id == other.id and self.event_type == other.event_type:
+            return True
+        else:
+            return False
+    
+    def __hash__(self) -> int:
+        return hash((self.id, self.event_type))
 
 class BaseGameState(Protocol):
 
@@ -43,4 +53,4 @@ class BaseGameState(Protocol):
 
     #For random games:
     random_events:List #List[RandomEvent] -> listed in case they were sequencial
-
+    def sample_random_event(self, event_type) -> RandomEvent: raise NotImplementedError #Samples a random event again, updating the game state to accommodate it accordingly 

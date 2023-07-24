@@ -7,6 +7,9 @@ print(os.getcwd())
 
 # import local scripts
 from Agents.human import HumanPlayer
+from Agents.random import RandomPlayer
+from Agents.vanilla_mcts import MCTS_Player
+from Games.Carcassonne.AvailableMove import AvailableMove
 #from player.MCTS_Player import MCTSPlayer
 #from player.MCTS_RAVE_Player import MCTS_RAVEPlayer
 #from player.MCTS_ES_Player import MCTS_ES_Player
@@ -33,8 +36,8 @@ NumKeys = [pygame.K_KP0, pygame.K_KP1, pygame.K_KP2, pygame.K_KP3, pygame.K_KP4,
 # list of player available to choose from
 PLAYERS = [
         ("Human", HumanPlayer()),
-        #("Random", RandomPlayer()),
-        #("MCTS", MCTSPlayer()),
+        ("Random", RandomPlayer()),
+        ("MCTS", MCTS_Player(max_iterations=100)),
         #("RAVE", MCTS_RAVEPlayer())
         ] 
 
@@ -172,7 +175,9 @@ def PlayGame(p1, p2):
     
     # initiate game state  
     #Carcassonne = CarcassonneState(p1,p2)
-    Carcassonne = CarcassonneState()
+    #Carcassonne = CarcassonneState()
+    #Carcassonne = CarcassonneState(initial_tile_quantities=[1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0])
+    Carcassonne = CarcassonneState(initial_tile_quantities=[1 for _ in range(24)])
     Carcassonne.set_initial_state()
 
     # initialize the 'next tile' onject
@@ -184,7 +189,7 @@ def PlayGame(p1, p2):
     # isStartOfTurn - indicates whether it is the first tick of the next player's turn
     # hasSomethingNew - indicates an action has just happened
     isStartOfGame = isStartOfTurn = hasSomethingNew = True
-    selectedMove = [16, 0, 0, 0, None] # first move of game
+    selectedMove = AvailableMove(16, 0, 0, 0, None) # first move of game
     
     # default settings
     rotation = 0
@@ -253,7 +258,7 @@ def PlayGame(p1, p2):
                         # check is selection is valid
                         if (X, Y) in NT.possibleCoordsMeeples:
                             rotation = (90*NT.Rotated)  # rotation
-                            ManualMove = (NT.nextTileIndex, X, Y, rotation, NT.Meeple)
+                            ManualMove = AvailableMove(NT.nextTileIndex, X, Y, rotation, NT.Meeple)
                             player_index, selectedMove = playMove(NT, players[player_index], Carcassonne, NT.nextTileIndex, player_index, ManualMove=ManualMove)
                             NT = nextTile(Carcassonne, DisplayScreen)
                             print(f'Scores: {Carcassonne.FeatureScores}')

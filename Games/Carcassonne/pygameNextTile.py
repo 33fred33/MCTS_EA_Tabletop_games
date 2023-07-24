@@ -8,6 +8,7 @@ from pygameSettings import FONT_MEEPLE_IMAGE, FONT_MEEPLE_MENU, BLACK
 from pygameFunctions import placeColourTile, get_clicked_X, get_clicked_Y, meepleCoordinates
 from pygameLabel import Label
 
+from Games.Carcassonne.AvailableMove import AvailableMove
 
 # packages
 import pygame
@@ -323,16 +324,16 @@ class nextTile:
         self.meepleLabel.blit(meepleInfoLabel.text_surface, (x,y))
         
         
-    def updateMoveLabel(self, Carcassonne, selectedMove, isStartOfGame):
+    def updateMoveLabel(self, Carcassonne, selectedMove:AvailableMove, isStartOfGame):
         # check if any moves have been played yet
         move = selectedMove
         player = 1 - Carcassonne.player_turn
         
         # text
         title = "Last Move:"
-        tile = " Tile: " + str(move[0]) +" - " + Tile(move[0]).tile_desc
-        location = f' X: {move[1]}, Y: {move[2]}, Rotation: {move[3]}'
-        meeple = " Meeple: None" if move[4] is None else f' Meeple: {FEATURE_DICT[move[4][0]]}'
+        tile = " Tile: " + str(move.TileIndex) +" - " + Tile(move.TileIndex).tile_desc
+        location = f' X: {move.X}, Y: {move.Y}, Rotation: {move.Rotation}'
+        meeple = " Meeple: None" if move.MeepleInfo is None else f' Meeple: {FEATURE_DICT[move.MeepleInfo[0]]}'
         player = f' Player {player}'
         
         if isStartOfGame:

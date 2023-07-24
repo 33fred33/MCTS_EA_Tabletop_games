@@ -20,7 +20,9 @@ SIDE_COMPARISON_DICT={
 class CarcassonneState:
     
     def __init__(self, name = "Carcassonne", no_farms = False, reward_type = "Score_difference", losing_reward = -1, draw_reward = 0, winning_reward = 1, initial_tile_quantities = [1,3,1,1,2,3,2,2,2,3,1,3,2,5,3,2,4,3,3,4,4,9,8,1]):
-        
+
+        assert len(initial_tile_quantities) == 24, "The initial tile quantities must be a list of 24 ints"
+
         # players
         self.name = name
         self.no_farms = no_farms
@@ -76,7 +78,7 @@ class CarcassonneState:
         
         # each game starts with the same tile (Tile16) being placed
         # PlayingTileIndex=16, X,Y = 0,0, Rotation=0, MeepleKey=None
-        self.make_action([16, 0, 0, 0, None])
+        self.make_action(AvailableMove(16, 0, 0, 0, None))
         
         # code for running tests by arranging the order of the first few tiles
         
@@ -97,6 +99,7 @@ class CarcassonneState:
         Clone.Meeples = [x for x in self.Meeples]
         Clone.winner = self.winner
         Clone.result = self.result
+        Clone.reward = [x for x in self.reward]
         Clone.player_turn = self.player_turn
         Clone.is_terminal = self.is_terminal   
         Clone.turn = self.turn
@@ -109,15 +112,8 @@ class CarcassonneState:
         Clone.deck = [x for x in self.deck]
         Clone.random_events = [x.duplicate() for x in self.random_events]
         Clone.available_actions = [x for x in self.available_actions]
-        return Clone
-
-    
-    def shuffle(self):
-        """
-        Shuffles the deck - used for randomness in MCTS
-        """
-        rd.shuffle(self.deck)
-    
+        Clone.next_tile_index = self.next_tile_index
+        return Clone 
     
     def AddMeeple(self, MeepleUpdate, MeepleKey, FeatureCharacter, i):
         """
@@ -135,8 +131,7 @@ class CarcassonneState:
                 if MeepleKey[0] == FeatureCharacter and MeepleKey[1] == i:
                     AddedMeeples = MeepleUpdate
         return AddedMeeples
-    
-    
+     
     def completeMonastery(self, AffectedMonastery):
         """
         Checks if the monastery is completed (completely surrounded)
@@ -148,7 +143,6 @@ class CarcassonneState:
             self.Scores[AffectedMonastery.Owner] += 9  # award points to player
             self.FeatureScores[AffectedMonastery.Owner][2] += 9 # update monastery feature score
             AffectedMonastery.Value = 0  
-    
     
     def checkMonasteryCompleteness(self, X,Y, SurroundingSpots, MeepleUpdate, MeepleKey=None ):    
         """
@@ -178,7 +172,6 @@ class CarcassonneState:
                 AffectedMonastery = self.BoardMonasteries[NextMonasteryID]
                 [self.monasterySurroundings(Spot, AffectedMonastery, NextMonasteryID) for Spot in CompleteSurroundingSpots]
                 
-    
     def monasterySurroundings(self, Spot, AffectedMonastery, NextMonasteryID):
         """
         Function for 'for loop'
@@ -194,8 +187,7 @@ class CarcassonneState:
             self.MonasteryOpenings[Spot].append(NextMonasteryID)
         else:
             self.MonasteryOpenings[Spot] = [NextMonasteryID]
-            
-            
+                   
     def checkCityCompleteness(self, PlayingTile, Surroundings, MeepleUpdate, MeepleKey=None):
         """
         Check if city has been completed
@@ -211,8 +203,7 @@ class CarcassonneState:
             ClosingCities = []  # initialize list of closing cities
             ClosingCities = cityConnections(self, PlayingTile, Surroundings, ClosingCities, MeepleUpdate, MeepleKey)
             cityClosures(self, ClosingCities)
-                       
-            
+                             
     def checkRoadCompleteness(self, PlayingTile, Surroundings, MeepleUpdate, MeepleKey=None):            
         """
         Check if road has been completed
@@ -228,7 +219,6 @@ class CarcassonneState:
             ClosingRoads = roadConnections(self, PlayingTile, Surroundings, ClosingRoads, MeepleUpdate, MeepleKey)
             roadClosures(self, ClosingRoads)
     
-    
     def checkFarmCompleteness(self, PlayingTile, Surroundings, MeepleUpdate, MeepleKey):
         """
         Check if farm has been completed
@@ -241,9 +231,7 @@ class CarcassonneState:
         """
         if PlayingTile.HasFarms:
             farmConnections(self, PlayingTile, Surroundings, MeepleUpdate, MeepleKey)
-            
-            
-            
+                
     def UpdateVirtualScores(self):
         """
         Update virtual scores
@@ -287,7 +275,6 @@ class CarcassonneState:
             self.FeatureScores[1][6] += farmP2
         #print(f'VIRTUAL POINTS: \nPlayer1: {self.Scores[2]}, Player2: {self.Scores[3]} \n')
         
-    
     def nextTileIndex(self):
         """
         Returns index of next tile from the deck
@@ -297,28 +284,16 @@ class CarcassonneState:
         #else:
         #    index = self.deck[0]
         #return index
-        return self.random_events[0].id
-
-    
+        return self.next_tile_index
 
     def make_action(self, Move = None):
         """
         Place a tile on the game board
-        
-        Inputs:
-            - Move (a tuple):
-                - PlayingTileIndex: Index of tile being played
-                - X,Y: Position of tile on the board
-                - Rotation: Rotation of tile
-                - MeepleKey
         """
-        # split up 'Move' object
-        if isinstance(Move, AvailableMove):
-            Move = Move.move
-        PlayingTileIndex = Move[0]
-        X,Y = Move[1], Move[2]
-        Rotation = Move[3]
-        MeepleKey = Move[4]
+        PlayingTileIndex = Move.TileIndex#Move[0]
+        X,Y = Move.X, Move.Y#Move[1], Move[2]
+        Rotation = Move.Rotation#Move[3]
+        MeepleKey = Move.MeepleInfo#Move[4]
         
         # fix for when the game chooses a tile after the end of game
         if PlayingTileIndex == -1:
@@ -377,28 +352,13 @@ class CarcassonneState:
             self.EndGameRoutine()
             return
         
-        chosen_tiles = []
-        self.available_actions = []
-        while self.available_actions == []:
-            untested_tile_indexes = [tile_index for tile_index in self.TileIndexList if tile_index not in chosen_tiles]
-            if untested_tile_indexes == []:
-                self.EndGameRoutine()
-                return
-            else:
-                #Turn end routine
-                self.player_turn = 1 - self.player_turn # switch turn
-                self.turn += 1  # increment turns
+        #Turn end routine
+        self.player_turn = 1 - self.player_turn # switch turn
+        self.turn += 1  # increment turns
 
-                random_tile = rd.choice(untested_tile_indexes)
-                chosen_tiles.append(random_tile)
-                self.available_actions = self.availableMoves(TileIndexOther = random_tile)
-                chosen_tile_probability = self.TileIndexList.count(random_tile)/len(self.TileIndexList)
-                self.random_events = [base_games.RandomEvent(id = random_tile, probability = chosen_tile_probability)]
+        #Sample random event
+        self.sample_random_event(event_type="Draw random tile")
 
-
-        
-    
-    
     def EndGameRoutine(self):
         """
         Logic to handle when game is finished
@@ -422,9 +382,19 @@ class CarcassonneState:
             self.winner = None #Draw       
             
         self.result = self.Scores[2] - self.Scores[3]
-        
-    
+        self.available_actions = []
 
+        #Assign rewards
+        if self.reward_type == "Score_difference":
+            self.reward = [self.result, -self.result]
+        elif self.reward_type == "Arbitrary":
+            if self.winner == 1:
+                self.reward = [self.losing_reward, self.winning_reward]
+            elif self.winner == 0:
+                self.reward = [self.winning_reward, self.losing_reward]
+            else:
+                self.reward = [self.draw_reward, self.draw_reward]
+        
     def doesTileFit(self, EvaluatedTile, Rotation, SurroundingSpots):
         """
         Checks if the tile ('EvaluatedTile') can be placed with this 'Rotation' 
@@ -447,9 +417,7 @@ class CarcassonneState:
                         break
             break
         return IsTileFitting, SideChange
-    
-    
-    
+     
     def movesWithMeeples(self, EvaluatedTile, HasFeature, Openings, 
                          Feature, SideChange, SurroundingSpots, 
                          TempAvailableMoves,TileIndex,X,Y,Rotation):
@@ -493,8 +461,7 @@ class CarcassonneState:
                     TempAvailableMoves.append( AvailableMove(TileIndex,X,Y,Rotation,(Feature,i)) )
                                         
         return TempAvailableMoves
-                                
-                            
+                                                 
     def matchingFeature(self, EvaluatedTile, BoardFeature, Feature, SurroundingSpots, Side, FarmLine = None):
         # cities
         if Feature == "C":
@@ -512,9 +479,6 @@ class CarcassonneState:
         
         return MatchingFeature
     
-    
-    
-        
     def availableMoves(self, TilesOnly = False, TileIndexOther = None):
         """
         Create a list of all available moves based on the Tile the player just 
@@ -550,7 +514,6 @@ class CarcassonneState:
         # list of all moves
         return allAvailableMoves
     
-    
     def discardTile(self, TileIndex):
         """
         If there are no possible moves for a tile, then it should be discarded
@@ -563,8 +526,7 @@ class CarcassonneState:
         self.TileQuantities[TileIndex] -= 1
         self.TotalTiles -= 1
         self.TileIndexList.remove(TileIndex)
-    
-    
+     
     def availableMovesForSpotRotations(self, Spot, Rotation, EvaluatedTile, TileIndex, TilesOnly):
         """
         Checks available moves for each rotation
@@ -611,21 +573,6 @@ class CarcassonneState:
         
         return availableMoves 
     
-    
-    def checkWinner(self):
-        """
-        Returns result
-        """
-        return self.result
-    
-    
-    def getRandomMove(self):
-        """
-        Returns a random move from all possible moves
-        """
-        availableMoves = self.availableMoves()
-        return rd.choice(availableMoves)
-    
     def feature_vector(self): #To fix
         fv = {}
         fv["Meeples_p1"] = self.Meeples[0]
@@ -641,8 +588,6 @@ class CarcassonneState:
         data = self.feature_vector()
         for i, player_reward in enumerate(self.reward):
             data["Reward_p"+str(i)] = player_reward
-            data["Score_p"+str(i)] = self.Scores[i]
-            data["Virtual_score_p"+str(i)] = self.Scores[i+2]
         data["Turn"] = self.turn
         data["Winner"] = self.winner
         data["Is_terminal"] = self.is_terminal
@@ -661,6 +606,34 @@ class CarcassonneState:
             data["tile_"+str(tile_index)+"_count"] = self.initial_tile_quantities[tile_index]
         return pd.DataFrame(data, index=[0])
 
+    def sample_random_event(self, event_type):
+        """Samples a random event of the game"""
+        if event_type == "Draw random tile":
+            chosen_tiles = []
+            self.available_actions = []
+            while self.available_actions == []:
+                untested_tile_indexes = [tile_index for tile_index in self.TileIndexList if tile_index not in chosen_tiles]
+                if untested_tile_indexes == []:
+                    #set back turn change variables
+                    self.player_turn = 1 - self.player_turn
+                    self.turn -= 1
+                    #end game
+                    for tile in chosen_tiles: self.discardTile(tile)
+                    self.EndGameRoutine()
+                    return
+                else:
+                    random_tile = rd.choice(untested_tile_indexes)
+                    chosen_tiles.append(random_tile)
+                    self.available_actions = self.availableMoves(TileIndexOther = random_tile)
+        else:
+            raise ValueError("Unknown event type: "+str(event_type))
+        
+        chosen_tile_probability = self.TileIndexList.count(random_tile)/len(self.TileIndexList)
+        random_event = base_games.RandomEvent(id = random_tile, probability = chosen_tile_probability, event_type="Draw random tile")
+        self.random_events = [random_event]
+        self.next_tile_index = random_tile
+        
+        return random_event
 
     def __repr__(self):
         #Str = str(self.TileIndexList) + "\n" + str(self.Board) + "\n" + str(self.BoardCities) + "\n" + str(self.BoardRoads) + "\n" + str(self.BoardMonasteries) + "\n" + str(self.BoardFarms)
