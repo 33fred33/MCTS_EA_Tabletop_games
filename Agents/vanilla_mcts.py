@@ -12,12 +12,13 @@ import Utilities.logs_management as lm
 
 class Node():
 
-    def __init__(self, state=None, parent = None, edge_action = None, expansion_index = None, is_chance_node = False):
+    def __init__(self, state=None, parent = None, edge_action = None, expansion_index = None, is_chance_node = False, random_event_type = None):
         self.parent = parent
         self.state = state #Saving states accelerates iterations but increases memory usage
         self.expansion_index = expansion_index #For logs
         self.edge_action = edge_action
         self.is_chance_node = is_chance_node
+        self.random_event_type = random_event_type
 
         self.visits = 0
         self.total_reward = 0
@@ -25,7 +26,7 @@ class Node():
 
     def duplicate(self, parent = None):
         #Duplicates node and subtree
-        clone_node = Node(state=self.state.duplicate(), parent=parent, edge_action=self.edge_action, expansion_index=self.expansion_index, is_chance_node=self.is_chance_node)
+        clone_node = Node(state=self.state.duplicate(), parent=parent, edge_action=self.edge_action, expansion_index=self.expansion_index, is_chance_node=self.is_chance_node, random_event_type=self.random_event_type)
         clone_node.visits = self.visits
         clone_node.total_reward = self.total_reward
         for action, child in self.children.items():
@@ -37,27 +38,36 @@ class Node():
         return len(self.state.available_actions) > len(self.children) and len(self.state.available_actions) > 0 and not self.state.is_terminal
 
     def average_reward(self):
-        return self.total_reward/self.visits if self.visits > 0 else np.nan
+        #if self.is_chance_node:
+        if self.is_chance_node:
+            total_probability = 0
+            children_reward = 0
+            for child in self.children.values():
+                total_probability = total_probability + child.edge_action.probability
+                children_reward = children_reward + child.average_reward() * child.edge_action.probability
+            return children_reward/total_probability if total_probability > 0 else np.nan
+        else:
+            return self.total_reward/self.visits if self.visits > 0 else np.nan
 
     def random_available_action(self):
         assert self.can_be_expanded(), "Node cannot be expanded"
         return rd.choice([a for a in self.state.available_actions if a not in self.children])
 
-    def add_child(self, edge_content, state, expansion_index, is_chance_node=False):
+    def add_child(self, edge_content, state, expansion_index, is_chance_node=False, random_event_type=None):
         """Adds a child to the node, and returns the child."""
-        child_node = Node(state=state, parent=self, edge_action = edge_content, expansion_index=expansion_index, is_chance_node=is_chance_node)
+        child_node = Node(state=state, parent=self, edge_action = edge_content, expansion_index=expansion_index, is_chance_node=is_chance_node, random_event_type=random_event_type)
         self.children[edge_content] = child_node
         return child_node
 
     def sample_random_event(self, expansion_index):
-        """Samples the random event from the edge, and adds a child if the event was not already a child. Returns the chosen node. Equivalent to expand a decision node"""
+        """Samples the random event from the edge, and adds a child if the event was not already a child. Returns the chosen node, and a boolean of wether or not the node was created new. Equivalent to expand a decision node"""
         assert self.is_chance_node, "Sample random event called on a decision node"
         dupe_state = self.state.duplicate()
-        random_event = dupe_state.sample_random_event(self.edge_action.event_type)
-        for child in self.children:
+        random_event = dupe_state.sample_random_event(self.random_event_type)
+        for child in self.children.values():
             if child.edge_action == random_event:
                 return child, False
-        new_node = self.add_child(edge_content=random_event, state=dupe_state, expansion_index=expansion_index, is_chance_node=True)
+        new_node = self.add_child(edge_content=random_event, state=dupe_state, expansion_index=expansion_index)
         return new_node, True
         
     def update(self, new_reward):
@@ -78,17 +88,23 @@ class Node():
             "expansion_index": self.expansion_index,
             "visits": self.visits,
             "total_reward": self.total_reward,
-            "avg_reward": self.total_reward/self.visits if self.visits > 0 else np.nan,
+            "avg_reward": self.average_reward(),
             "children": len(self.children),
             "state": str(self.state),
             "edge_action": str(self.edge_action),
             "is_chance_node": str(self.is_chance_node),
+            "random_event_type": self.random_event_type,
         }
         return pd.DataFrame(data, index=[0])
 
     def __str__(self):
-        avg_reward = self.total_reward/self.visits if self.visits > 0 else np.nan
-        return "edge_action:" + str(self.edge_action) + ", visits:" + str(self.visits) + ", avg_reward:" + "{0:.3g}".format(avg_reward) + ", children:" + str(len(self.children)) + ", is_chance_node:" + str(self.is_chance_node) + ", expansion_index:" + str(self.expansion_index)
+        if self.is_chance_node: 
+            node_type = "Chance_node"
+            ret = self.random_event_type
+        else: 
+            node_type = "Decision_node"
+            ret = ""
+        return str(self.expansion_index) + ":" + node_type + ", edge:" + str(self.edge_action) + ", visits:" + str(self.visits) + ", avg_reward:" + "{0:.3g}".format(self.average_reward()) + ", children:" + str(len(self.children)) + ", ret:" + str(ret)
 
     def __eq__(self, other):
         if other is None:
@@ -182,43 +198,71 @@ class MCTS_Player(BaseAgent):
         #Returns a node that can be expanded selecting by UCT
         assert node.state.is_terminal == False, "Selection called on a terminal node"
         assert node.is_chance_node == False, "Selection called on a chance node"
-        while not node.can_be_expanded() and not node.state.is_terminal:
 
-            node = self.best_child_by_tree_policy(node.children.values())
-            self.current_fm = self.current_fm + 1
+        #selected node cannot be a chance node
+        safe_counter = 0
+        while (not node.can_be_expanded() and not node.state.is_terminal) or node.is_chance_node:
 
             #if node is chance node, return a random child
-            while node.is_chance_node:
-                node, added_chance_node = node.sample_random_event(expansion_index = self.nodes_count)
-                if added_chance_node:
+            if node.is_chance_node:
+                node, added_node = node.sample_random_event(expansion_index = self.nodes_count)
+                if added_node:
                     self.nodes_count += 1
+            
+            #if node is a decision node, use tree policy
+            else:
+                node = self.best_child_by_tree_policy(node.children.values())
+                self.current_fm = self.current_fm + 1
+
+            safe_counter += 1
+            assert safe_counter < 1000, "Selection looped too many times"
 
         return node
 
     def expansion(self, node) -> Node:
         #Returns a new node with a random action
 
-        #Select random action
+        assert not node.is_chance_node, "Expansion called on a chance node"
+        assert not node.state.is_terminal, "Expansion called on a terminal node"
+
+        #The node has not been evaluated yet
+        if node.visits == 0 and node.parent is not None:
+            return node
+
+        #Select random action that has not been sampled
         action = node.random_available_action()
+        last_edge_content = action
         
         #New state
         duplicate_state = node.state.duplicate()
         duplicate_state.make_action(action)
-
-        #Add node to tree
-        new_node = node.add_child(action, duplicate_state, expansion_index=self.nodes_count)
-
-        self.nodes_count += 1
-        self.current_fm = self.current_fm + 1
+        
 
         #Add chance nodes. Assumes that random events have already occurred in the game state, and adds that event as an additional node
         if hasattr(duplicate_state, "random_events"):
             random_events_copy = [e.duplicate() for e in duplicate_state.random_events]
+
+            safe_counter = 0
             while len(random_events_copy) > 0:
-                chance_duplicate_state = duplicate_state.duplicate()
+
+                #Create chance node content
+                duplicate_state = duplicate_state.duplicate()
+
                 #Add chance node
-                new_node = new_node.add_child(edge_content = random_events_copy.pop(0), state = chance_duplicate_state, expansion_index=self.nodes_count, is_chance_node=True)
+                node = node.add_child(edge_content = last_edge_content, state = duplicate_state, expansion_index=self.nodes_count, is_chance_node=True, random_event_type=random_events_copy[0].event_type)
                 self.nodes_count += 1
+
+                #Update edge content
+                last_edge_content = random_events_copy.pop(0)
+
+                safe_counter += 1
+                assert safe_counter < 1000, "Expansion looped too many times"
+
+        #Add decision node
+        new_node = node.add_child(last_edge_content, duplicate_state, expansion_index=self.nodes_count)
+
+        self.nodes_count += 1
+        self.current_fm = self.current_fm + 1
 
         return new_node
 
@@ -254,10 +298,10 @@ class MCTS_Player(BaseAgent):
             assert node.parent is not None
 
             #Verify who's turn it is
-            reward = node.total_reward if node.parent.state.player_turn == self.player else -node.total_reward
+            reward = node.average_reward() if node.parent.state.player_turn == self.player else -node.average_reward()
 
             #UCB1
-            return reward / node.visits + self.c * math.sqrt(math.log(node.parent.visits) / node.visits)
+            return reward + self.c * math.sqrt(math.log(node.parent.visits) / node.visits)
 
     def best_child_by_tree_policy(self, children, my_tree_policy_formula=None):
         """
@@ -313,15 +357,16 @@ class MCTS_Player(BaseAgent):
             "current_time": self.current_time,
             "current_iterations": self.current_iterations,
             "root_node_visits": str(self.root_node.visits),
-            "root_node_avg_reward": self.root_node.total_reward / self.root_node.visits if self.root_node.visits > 0 else np.nan ,
+            "root_node_avg_reward": self.root_node.average_reward() if self.root_node.visits > 0 else np.nan ,
             "nodes_count": self.nodes_count,
             #"root_nodes_count": self.root_node.subtree_nodes(), 
         }
         for i,c in enumerate(self.root_node.children.values()):
             data_dict["action" + str(i)] = str(c.edge_action)
             data_dict["action" + str(i) + "_is_chance_node"] = c.is_chance_node
+            data_dict["action" + str(i) + "_event_type"] = c.random_event_type
             data_dict["action" + str(i) + "_visits"] = c.visits
-            data_dict["action" + str(i) + "_avg_reward"] = c.total_reward / c.visits if c.visits > 0 else np.nan   
+            data_dict["action" + str(i) + "_avg_reward"] = c.average_reward()
             data_dict["action" + str(i) + "_tree_policy_formula"] = self.tree_policy_formula(c)
         action_df = pd.DataFrame(data_dict, index=[0])
         action_df = pd.concat([action_df, self.agent_data()], axis=1)

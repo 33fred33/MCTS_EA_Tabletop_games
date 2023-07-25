@@ -19,7 +19,7 @@ SIDE_COMPARISON_DICT={
      
 class CarcassonneState:
     
-    def __init__(self, name = "Carcassonne", no_farms = False, reward_type = "Score_difference", losing_reward = -1, draw_reward = 0, winning_reward = 1, initial_tile_quantities = [1,3,1,1,2,3,2,2,2,3,1,3,2,5,3,2,4,3,3,4,4,9,8,1]):
+    def __init__(self, name = "Carcassonne", no_farms = False, reward_type = "Score_difference", losing_reward = -1, draw_reward = 0, winning_reward = 1, initial_tile_quantities = [1,3,1,1,2,3,2,2,2,3,1,3,2,5,3,2,4,3,3,4,4,9,8,1], initial_meeples = [7,7]):
 
         assert len(initial_tile_quantities) == 24, "The initial tile quantities must be a list of 24 ints"
 
@@ -52,11 +52,15 @@ class CarcassonneState:
         self.TileIndexList = []
         for i in range(self.UniqueTilesCount):
             self.TileIndexList += [i for _ in range(self.TileQuantities[i])]
+        
+        self.initial_meeples = initial_meeples 
+        self.max_possible_score = self.max_score()
             
         # create deck
         #self.deck = [x for x in self.TileIndexList]
         self.deck = self.TileIndexList.copy()
         rd.shuffle(self.deck)  # shuffle the deck
+        
         
     def set_initial_state(self):
 
@@ -87,7 +91,7 @@ class CarcassonneState:
         Clones the game state - quicker than using copy.deepcopy()
         """
         #Clone = copy.deepcopy(self)
-        Clone = CarcassonneState(name=self.name, no_farms = self.no_farms, reward_type=self.reward_type, losing_reward=self.losing_reward, draw_reward=self.draw_reward, winning_reward=self.winning_reward, initial_tile_quantities=self.initial_tile_quantities)
+        Clone = CarcassonneState(name=self.name, no_farms = self.no_farms, reward_type=self.reward_type, losing_reward=self.losing_reward, draw_reward=self.draw_reward, winning_reward=self.winning_reward, initial_tile_quantities=self.initial_tile_quantities, initial_meeples=self.initial_meeples)
         Clone.Board = {k:v.CloneTile() for k,v in self.Board.items()}
         Clone.BoardCities = {k:v.CloneCity() for k,v in self.BoardCities.items()}
         Clone.BoardRoads = {k:v.CloneRoad() for k,v in self.BoardRoads.items()}
@@ -113,6 +117,7 @@ class CarcassonneState:
         Clone.random_events = [x.duplicate() for x in self.random_events]
         Clone.available_actions = [x for x in self.available_actions]
         Clone.next_tile_index = self.next_tile_index
+        Clone.max_possible_score = self.max_possible_score
         return Clone 
     
     def AddMeeple(self, MeepleUpdate, MeepleKey, FeatureCharacter, i):
@@ -382,11 +387,15 @@ class CarcassonneState:
             self.winner = None #Draw       
             
         self.result = self.Scores[2] - self.Scores[3]
+
+        #Kill variables
         self.available_actions = []
+        self.random_events = []
 
         #Assign rewards
         if self.reward_type == "Score_difference":
-            self.reward = [self.result, -self.result]
+            max_score = self.max_score()
+            self.reward = [self.result/max_score, -self.result/max_score]
         elif self.reward_type == "Arbitrary":
             if self.winner == 1:
                 self.reward = [self.losing_reward, self.winning_reward]
@@ -601,6 +610,9 @@ class CarcassonneState:
                 "total_tiles":sum(self.initial_tile_quantities),
                 "unique_tile_configurations":self.UniqueTilesCount,
                 "name":self.name,
+                "initial_tile_quantities":str(self.initial_tile_quantities),
+                "initial_meeples":self.initial_meeples,
+                "max_possible_score":self.max_possible_score,
                 "no_farms":self.no_farms}
         for tile_index in range(len[self.initial_tile_quantities]):
             data["tile_"+str(tile_index)+"_count"] = self.initial_tile_quantities[tile_index]
@@ -634,6 +646,82 @@ class CarcassonneState:
         self.next_tile_index = random_tile
         
         return random_event
+
+    def max_score(self):
+
+        #initialise variables
+        city_points = 0
+        single_city_end = 0
+        single_city_values = []
+        pizza_city = 0
+        pizza_city_values = []
+        triple_city = 0
+        triple_city_values = []
+        quad_city = 0
+        quad_city_values = []
+        road_points = 0
+        monastery_points = 0
+        not_closed_city_values = []
+        closed_cities = 0
+
+        #iterate tiles
+        for i, quantity in enumerate(self.initial_tile_quantities):
+            tile = Tile(i)
+            if tile.HasCities:
+                for city_opening in tile.CityOpenings:
+                    if len(city_opening) == 1:
+                        single_city_values += [tile.CityValues for _ in range(quantity)]
+                    elif len(city_opening) == 2:
+                        pizza_city_values += [tile.CityValues for _ in range(quantity)]
+                    elif len(city_opening) == 3:
+                        triple_city_values += [tile.CityValues for _ in range(quantity)]
+                    else:
+                        quad_city_values += [tile.CityValues for _ in range(quantity)]
+            if tile.HasRoads: #missing: check if pair road ends, or take a meeple
+                for road_opening in tile.RoadOpenings:
+                    road_points += quantity
+            if tile.HasMonastery:
+                monastery_points += quantity * 9
+        
+        #sort score stacks
+        sorted_single_city_values = sorted(single_city_values, reverse=True)
+        sorted_pizza_city_values = sorted(pizza_city_values, reverse=True)
+        sorted_triple_city_values = sorted(triple_city_values, reverse=True)
+        sorted_quad_city_values = sorted(quad_city_values, reverse=True)
+
+        #How many single cities are closed?
+        closed_cities += int(len(sorted_single_city_values) / 2)
+        if len(sorted_single_city_values) % 2 == 1:
+            not_closed_city_values.append(sorted_single_city_values.pop(-1))
+        city_points += sum(sorted_single_city_values) * 2
+
+        #How many double cities are closed?
+        closed_cities += int(len(sorted_pizza_city_values) / 4)
+        for _ in range(len(sorted_pizza_city_values) % 4):
+            not_closed_city_values.append(sorted_pizza_city_values.pop(-1))
+        city_points += sum(sorted_pizza_city_values) * 2
+
+        #Find how many triple cities can be closed with pizzas
+        if len(sorted_pizza_city_values) >= 4 and len(sorted_triple_city_values) >= 2:
+                if len(sorted_triple_city_values) % 2 == 1:
+                    not_closed_city_values.append(sorted_triple_city_values.pop(-1))
+                city_points += sum(sorted_triple_city_values) *2
+        else:
+            not_closed_city_values += sorted_triple_city_values
+
+        #Find how many quad cities can be closed with pizzas
+        quads_can_be_closed = min(len(sorted_pizza_city_values) / 4 , len(sorted_triple_city_values) / 4)
+        quads_cannot_be_closed = min(len(sorted_quad_city_values) - quads_can_be_closed,0)
+        for _ in range(quads_cannot_be_closed):
+            not_closed_city_values += sorted_quad_city_values.pop(-1)
+        city_points += sum(sorted_quad_city_values) * 2 
+
+        #Use meeples to score unfinished cities
+        max_meeples = max(self.initial_meeples) - 1 #minus one used for a hypothetical unique farm
+        city_points += sum(sorted(not_closed_city_values, reverse=True)[:max_meeples])
+        
+        closed_cities = int(single_city_end / 2 + pizza_city / 4)
+        return city_points + road_points + monastery_points + closed_cities * 3
 
     def __repr__(self):
         #Str = str(self.TileIndexList) + "\n" + str(self.Board) + "\n" + str(self.BoardCities) + "\n" + str(self.BoardRoads) + "\n" + str(self.BoardMonasteries) + "\n" + str(self.BoardFarms)
