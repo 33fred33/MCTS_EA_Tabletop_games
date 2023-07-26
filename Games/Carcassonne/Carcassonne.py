@@ -710,8 +710,8 @@ class CarcassonneState:
             not_closed_city_values += sorted_triple_city_values
 
         #Find how many quad cities can be closed with pizzas
-        quads_can_be_closed = min(len(sorted_pizza_city_values) / 4 , len(sorted_triple_city_values) / 4)
-        quads_cannot_be_closed = min(len(sorted_quad_city_values) - quads_can_be_closed,0)
+        quads_can_be_closed = int(min(int(len(sorted_pizza_city_values)) / 4 , int(len(sorted_triple_city_values) / 4)))
+        quads_cannot_be_closed = int(min(len(sorted_quad_city_values) - quads_can_be_closed,0))
         for _ in range(quads_cannot_be_closed):
             not_closed_city_values += sorted_quad_city_values.pop(-1)
         city_points += sum(sorted_quad_city_values) * 2 

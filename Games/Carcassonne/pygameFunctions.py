@@ -145,7 +145,7 @@ def placeTile(Tile, Rotation, x, y, DisplayScreen):
         Feature, Location = TileMeeple[0], TileMeeple[1]
         playerSymbol = TileMeeple[2]
         # meeple image
-        meepleColour = "blue" if playerSymbol == 1 else "red"
+        meepleColour = "blue" if playerSymbol == 0 else "red"
         meepleImage = pygame.image.load('Games/Carcassonne/pygame_images/' + meepleColour + '.png')
         meepleImage = pygame.transform.scale(meepleImage, (Meeple_Size, Meeple_Size))
         X,Y = meepleCoordinates(Location, Feature, MEEPLE_LOCATION_DICT, TileIndex)

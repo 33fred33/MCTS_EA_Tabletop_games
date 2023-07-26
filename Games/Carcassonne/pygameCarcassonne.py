@@ -9,6 +9,7 @@ print(os.getcwd())
 from Agents.human import HumanPlayer
 from Agents.random import RandomPlayer
 from Agents.vanilla_mcts import MCTS_Player
+from Agents.siea_mcts import SIEA_MCTS_Player
 from Games.Carcassonne.AvailableMove import AvailableMove
 #from player.MCTS_Player import MCTSPlayer
 #from player.MCTS_RAVE_Player import MCTS_RAVEPlayer
@@ -38,6 +39,7 @@ PLAYERS = [
         ("Human", HumanPlayer()),
         ("Random", RandomPlayer()),
         ("MCTS", MCTS_Player(max_iterations=100)),
+        ("SIEA_MCTS", SIEA_MCTS_Player(max_iterations=100)),
         #("RAVE", MCTS_RAVEPlayer())
         ] 
 

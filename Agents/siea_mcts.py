@@ -65,16 +65,17 @@ class SIEA_MCTS_Player(MCTS_Player):
         to_return = super().choose_action(state)
         return to_return
 
-    def selection(self, node) -> Node:
+    def selection(self, node, my_tree_policy_formula=None, allow_evolution = True) -> Node:
         #Returns a node that can be expanded selecting by UCT
         assert node.state.is_terminal == False, "Selection called on a terminal node"
         while not node.can_be_expanded() and not node.state.is_terminal:
-            if not self.hasGPTree: 
+            if not self.hasGPTree and allow_evolution: 
                 self.GPTree = ES_Search(node, self)
                 #print("Finished evolving")
                 self.hasGPTree = True
-            node = self.best_child_by_tree_policy(node.children.values())
-            self.current_fm = self.current_fm + 1
+            #node = self.best_child_by_tree_policy(node.children.values())
+            #self.current_fm = self.current_fm + 1
+            node = super().selection(node, my_tree_policy_formula=my_tree_policy_formula)
         return node
     
     def tree_policy_formula(self, node):
@@ -216,7 +217,7 @@ def ES_Search(RootNode, MCTS_Player):
         results = []
         for i in range(es_fitness_iterations):
             # copy the state
-            stateCopy = RootNode.state.duplicate()
+            #stateCopy = RootNode.state.duplicate()
             node = RootNode
             
             """
@@ -235,10 +236,12 @@ def ES_Search(RootNode, MCTS_Player):
                 else:
                     return -func(node.average_reward(), node.visits, node.parent.visits)
             
-            node = mcts_player.best_child_by_tree_policy(children = node.children.values(), my_tree_policy_formula = my_tree_policy_formula)
+            #node = mcts_player.best_child_by_tree_policy(children = node.children.values(), my_tree_policy_formula = my_tree_policy_formula)
+            node = mcts_player.selection(node, my_tree_policy_formula=my_tree_policy_formula, allow_evolution=False)
 
             # play the move of this child node
-            stateCopy.make_action(node.edge_action)
+            #stateCopy.make_action(node.edge_action)
+            stateCopy = node.state.duplicate()
             
             # random rollout
             while not stateCopy.is_terminal:

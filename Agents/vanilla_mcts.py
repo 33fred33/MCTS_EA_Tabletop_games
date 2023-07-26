@@ -194,7 +194,7 @@ class MCTS_Player(BaseAgent):
         #Backpropagation
         self.backpropagation(node, reward)
 
-    def selection(self, node) -> Node:
+    def selection(self, node, my_tree_policy_formula = None) -> Node:
         #Returns a node that can be expanded selecting by UCT
         assert node.state.is_terminal == False, "Selection called on a terminal node"
         assert node.is_chance_node == False, "Selection called on a chance node"
@@ -211,7 +211,7 @@ class MCTS_Player(BaseAgent):
             
             #if node is a decision node, use tree policy
             else:
-                node = self.best_child_by_tree_policy(node.children.values())
+                node = self.best_child_by_tree_policy(node.children.values(), my_tree_policy_formula=my_tree_policy_formula)
                 self.current_fm = self.current_fm + 1
 
             safe_counter += 1
