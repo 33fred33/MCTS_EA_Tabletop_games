@@ -60,7 +60,6 @@ def get_clicked_X(mouse_pos, displayScreen):
             return i-1
     return 1000
     
-
 def get_clicked_Y(mouse_pos, displayScreen):
     Grid = displayScreen.Grid
     Grid_Size = displayScreen.Grid_Size
@@ -75,7 +74,6 @@ def get_clicked_Y(mouse_pos, displayScreen):
             return -(i-1)
     return 1000
 
-    
 def drawGrid(DisplayScreen):
     # display constants
     Grid_Window_Width = DisplayScreen.Grid_Window_Width
@@ -95,9 +93,6 @@ def drawGrid(DisplayScreen):
             rect = pygame.Rect(x+Grid_border, y+Grid_border, Grid_Size, Grid_Size)
             pygame.draw.rect(GAME_DISPLAY, WHITE, rect, 1)
     
-   
-
-
 def placeColourTile(x, y, DisplayScreen, COLOUR):
     # display constants
     Grid_Window_Width = DisplayScreen.Grid_Window_Width
@@ -119,7 +114,6 @@ def placeColourTile(x, y, DisplayScreen, COLOUR):
     pygame.draw.rect(rect_surf, COLOUR, rect_surf.get_rect())
     GAME_DISPLAY.blit(rect_surf, rect)
     
-
 def placeTile(Tile, Rotation, x, y, DisplayScreen):
     # display constants
     Grid_Window_Width = DisplayScreen.Grid_Window_Width
@@ -154,7 +148,6 @@ def placeTile(Tile, Rotation, x, y, DisplayScreen):
     image = pygame.transform.scale(image, (Grid_Size,Grid_Size))
     image = pygame.transform.rotate(image, Rotation)
     GAME_DISPLAY.blit(image, (GAME_X, GAME_Y))
-
 
 def meepleCoordinates(Location, Feature, DICT, TileIndex):
     """
@@ -202,7 +195,6 @@ def meepleCoordinates(Location, Feature, DICT, TileIndex):
     X,Y = coords[0],coords[1]
     return X,Y
 
-
 def diplayGameBoard(Carcassonne, displayScreen):
     """
     Display all current tiles on the game board        
@@ -217,14 +209,13 @@ def diplayGameBoard(Carcassonne, displayScreen):
         # place tile on board
         placeTile(tile, rotation, X, Y, displayScreen)
 
-
 def playMove(NextTile, player, Carcassonne, TileIndex, current_index, ManualMove=None,):
     
     # check if there is a possible move
-    if len(Carcassonne.availableMoves()) == 0:
-        print("No Moves Available - Tile Discarded From Game")
-        Carcassonne.make_action([None, TileIndex])
-        return current_index  # turn not over
+    #if len(Carcassonne.availableMoves()) == 0:
+    #    print("No Moves Available - Tile Discarded From Game")
+    #    Carcassonne.make_action([None, TileIndex])
+    #    return current_index  # turn not over
     
     # get move
     if player.isAIPlayer:
@@ -237,8 +228,6 @@ def playMove(NextTile, player, Carcassonne, TileIndex, current_index, ManualMove
     #print(f'(pygame) Selected Move[0]: {selectedMove[0]}')
     Carcassonne.make_action(selectedMove)
     return 1-current_index, selectedMove
-
-
 
 def printTilesLeft(Carcassonne, displayScreen):
     # attributes
@@ -265,8 +254,6 @@ def printTilesLeft(Carcassonne, displayScreen):
     # attach rectangle to screen
     GAME_DISPLAY.blit(label, (Grid_Window_Width + (Menu_Width - width)/2, 250))
     
-    
-
 def printScores(Carcassonne, displayScreen):
     # attributes
     Grid_Window_Width = displayScreen.Total_Grid_Width

@@ -725,7 +725,7 @@ class CarcassonneState:
 
     def __repr__(self):
         #Str = str(self.TileIndexList) + "\n" + str(self.Board) + "\n" + str(self.BoardCities) + "\n" + str(self.BoardRoads) + "\n" + str(self.BoardMonasteries) + "\n" + str(self.BoardFarms)
-        Str = str(self.TileIndexList)
+        Str = "Tiles left:" + str(self.TileIndexList)
         return Str
 
 

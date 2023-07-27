@@ -51,6 +51,7 @@ class GamePlayer():
                 p.logs = True
 
         #Play game
+        game_start_time = time.time()
         safe_count = 0
         while not gs.is_terminal:
             start_time = time.time()
@@ -79,6 +80,7 @@ class GamePlayer():
             #Make action
             gs.make_action(action)
 
+        
         if logs:
             #Final logs by action
             final_logs_by_action = pd.concat([action_logs, game_logs], axis=1)
@@ -90,6 +92,7 @@ class GamePlayer():
                 final_logs_by_game_dict["Player_" + str(i)] = str(player)
             final_logs_by_game_dict["game_random_seed"] = random_seed
             final_logs_by_game_dict["game_index"] = self.games_count
+            final_logs_by_game_dict["game_time"] = str(time.time() - game_start_time)
             final_logs_by_game = pd.DataFrame(final_logs_by_game_dict, index=[0])
             final_logs_by_game = pd.concat([final_logs_by_game, gs.logs_data()], axis=1)
             
@@ -124,7 +127,7 @@ class GamePlayer():
             np.random.seed(random_seed)
         seeds = rd.sample(range(0, 2**32), n_games)
         for i in range(n_games):
-            if logs: print("Playing game " + str(i) + " of " + str(n_games) + ", agents: " + str([a.name for a in self.players]))
+            if logs: print("Playing game " + str(i+1) + " of " + str(n_games) + ", agents: " + str([a.name for a in self.players]))
             self.play_game(random_seed = seeds[i], logs = logs)
             if logs:
                 if i % logs_dispatch_after == 0:
@@ -158,7 +161,7 @@ class GamePlayer():
         return return_string
 #
 # 
-def play_match(agents, game_state, games, file_path = None, random_seed = None, logs = True, logs_dispatch_after = 10) -> None:
+def play_match(agents, game_state, games, file_path = None, random_seed = None, logs = True, logs_dispatch_after = 10):
     """Plays a match between two agents
     agents: list of agents
     game_state: game state
@@ -178,6 +181,7 @@ def play_match(agents, game_state, games, file_path = None, random_seed = None, 
     #if file_path is not None:
     #    gp1.save_data(os.path.join(file_path , gp1.players[0].name + "_vs_" + gp1.players[1].name))
     #    gp2.save_data(os.path.join(file_path , gp2.players[0].name + "_vs_" + gp2.players[1].name))
+    return gp1, gp2
 
 def tree_data(node, divisions=1):
     """Division method Options: percentage, best_changed
