@@ -12,7 +12,7 @@ import Agents.random as arand
 import Agents.vanilla_mcts as mcts 
 import os
 import Utilities.logs_management as lm
-
+import statistics as stats
 
 import plotly.graph_objects as go
 import plotly.express as px
@@ -632,6 +632,189 @@ def fo_tree_histogram_average(data_list, function, title, divisions, n_buckets =
             fig['layout']['yaxis'+ str(subplot_n*2)]['visible'] = False
 
     return fig
+
+def fo_function_analysis(fo_state, title, max_depth=3, max_val=None):
+   """
+    Plots MCTS's fitness landscape for a 1d function
+    
+    Usage example:
+    random_player = RandomPlayer()
+    dummy_state = FunctionOptimisationState(players=[random_player], function=4, ranges=[[0,1]], splits=2)
+    functions = dummy_state.function_list
+    fig = fo_function_analysis(dummy_state, max_depth=5)
+    fig.show()
+   """
+
+   #Initialize
+   stop = fo_state.ranges[0][1]
+   start = fo_state.ranges[0][0]
+
+   #get max depth and step size
+   step = fo_state.ranges[0][1] - fo_state.ranges[0][0]
+   depth = 0
+   while step > fo_state.minimum_step:
+      depth += 1
+      step = step / fo_state.splits
+      if depth>1000:
+         print("Infinite while error")
+         break
+   
+   #Calculations
+   bar_widths= []
+   values_by_depth = {}
+   x = np.linspace(start,stop,int((stop-start)/step))
+   x=x[1:-1]
+   y_dict = {xi:fo_state.function([xi]) for xi in x}
+   for d in range(1,max_depth+1):
+      bar_widths.append([1/(fo_state.splits**d) for _ in range(fo_state.splits**d)])
+      divisions = fo_state.splits**d
+      division_size = (stop-start)/divisions
+      for i in range(divisions):
+         section_begin = division_size*i
+         section_end = division_size*(i+1)
+         values = []
+         for (k,v) in y_dict.items():
+            if k > section_begin and k < section_end:
+               values.append(v)
+         values_by_depth[(d,i)] = stats.mean(values)
+   #print(bar_widths)
+
+   #create subplots
+   n_plots = max_depth
+   even_spaces = 1/(n_plots+1)
+   row_heights = [even_spaces for _ in range(n_plots)] + [even_spaces]
+   sub_titles = [""] + ["Tree Depth " + str(i+1) for i in range(max_depth)]
+   fig = make_subplots(rows=n_plots+1, 
+                       cols=1,
+                       shared_xaxes=True,
+                       vertical_spacing=0.04,
+                       row_heights=row_heights, 
+                       specs=[[{"secondary_y": True}] for _ in range(n_plots+1)], 
+                       subplot_titles=sub_titles)
+   
+   #add function plot
+   x = np.linspace(0.001,1,5000)
+   y = [fo_state.function([i]) for i in x]
+   fig.add_trace(go.Scatter(x=x, 
+                            y=y, 
+                            showlegend=False,
+                            marker={"color":"black"}),
+                  row=1,col=1)
+   if max_val is not None:
+         fig.add_trace(go.Scatter(x=[max_val,max_val], 
+                                  y=[0,1], 
+                                  line=dict(color="#B10909", width=2, dash='dash'),
+                                  showlegend=True,
+                                  marker={"color":"#B10909"},
+                                  name="Localisation of the global maximum of the function"),
+                        row=1,col=1)
+
+   #add analysis plots
+   for d in range(1,max_depth+1):
+      show_legend = False
+      if d == max_depth:
+         show_legend = True
+      widths = bar_widths[d-1]
+      x = np.linspace(start,stop,((fo_state.splits**(d))*2)+1)
+      x = [x[i] for i in range(1,len(x)) if i%2]
+      x=np.cumsum(widths)-widths
+      valid_keys = [k for k in values_by_depth.keys() if k[0] == d]
+      y = [values_by_depth[k] for k in valid_keys]
+
+      #Find max and change color
+      max_y=max(y)
+      colors = ["#5B8C5A" for _ in range(len(y))]
+      #colors = ["#56638A" for _ in range(len(y))]
+      textures = ["" for _ in range(len(y))]
+      legend_groups = ["any" for _ in range(len(y))]
+      max_texture = "x"
+      #max_color = "#56638A"
+      max_color = "#303C64"
+      for i, y_i in enumerate(y):
+         if abs(max_y-y_i) < 0.0001:
+            colors[i] = max_color
+            #colors[i] = "#FC738C"
+            textures[i] = max_texture
+            legend_groups[i] = "max"
+
+      solidity = 0.4
+      fig.add_trace(go.Bar(x=x
+                           , y=y
+                           , showlegend=show_legend
+                           ,marker_color=colors
+                           ,width=widths
+                           ,offset=0
+                           ,marker_pattern_shape=textures
+                           ,name="Initial belief value for each node"
+                           ,marker= dict(pattern = dict(solidity=solidity))
+                           ,legendrank=1002
+                           )
+                        ,row=d+1,col=1)
+      fig.add_trace(go.Bar(x=x
+                           , y=[0 for _ in range(len(y))]
+                           , showlegend=show_legend
+                           #,marker_color="#FC738C"#"#56638A"
+                           ,marker_color=max_color
+                           ,width=widths
+                           ,offset=0
+                           ,marker_pattern_shape=max_texture
+                           ,name="Maximum initial belief value at this depth"
+                           ,legendrank=1001
+                           ,marker= dict(pattern = dict(solidity=solidity))
+                           )
+                        ,row=d+1,col=1)
+      fig.update_layout(legend= {'itemsizing': 'constant'})
+
+      #fig.update_traces(marker_pattern_shape=textures)
+      fig.add_trace(go.Scatter(x=[start,stop], y=[max(y),max(y)], line=dict(color=max_color, width=2, dash='dot'),showlegend=show_legend,marker={"color":"#56638A"},
+                               name="Comparison of the maximum initial belief value available at this depth"),row=d+1,col=1)
+      if max_val is not None:
+         fig.add_trace(go.Scatter(x=[max_val,max_val], y=[0,1], line=dict(color="#B10909", width=2, dash='dash'),showlegend=False,marker={"color":"#B10909"}),row=d+1,col=1)
+
+      #add vertical lines
+      if d > 1:
+         x_breaks = np.linspace(start,stop,fo_state.splits**(d-1)+1)
+         x_breaks = x_breaks[1:-1]
+         for x_break in x_breaks:
+            fig.add_trace(go.Scatter(x=[x_break,x_break], y=[0,1], showlegend=False,marker={"color":"black"}),row=d+1,col=1)
+            pass
+
+   #update fig layout
+   fig.update_layout(barmode='stack')
+   fig.update_layout(margin=dict(l=10, r=10, t=10, b=10),
+                     width=800,
+                     height=800,
+                     plot_bgcolor='rgba(0,0,0,0)',
+                     title={"text": title},
+                     font = dict(family = "Arial", size = 14, color = "black")
+                ,legend=dict(
+                    #title = "Formula",
+                    orientation="h",
+                    yanchor="top",
+                    y=-0.035,
+                    xanchor="center",
+                    x=0.5,  
+                    font = dict(family = "Arial", size = 14, color = "black"),
+                    #bordercolor="LightSteelBlue",
+                    borderwidth=2,
+                    itemsizing='trace',
+                    itemwidth = 30
+                    )  )
+   #fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='black')
+   fig.update_xaxes(showline=True, linewidth=2, linecolor='black', mirror=True)
+   fig.update_yaxes(showline=True, linewidth=2, linecolor='black', mirror=True)
+   # fig.update_xaxes(range=[start,stop])
+   fig.update_xaxes(range=[0,1])
+   fig.update_yaxes(range=[0,1])
+   if max_val is not None and False:
+         print(max_val)
+         fig.add_shape({'type': 'line','y0':0,'y1': 1,'x0':max_val, 
+                        'x1':max_val,
+                        'line': {'color': "#B10909",
+                                 'width': 1.5, 
+                                 "dash":"dash",
+                                 }}, row="all", col=1)
+   return fig
 
 def count_in_bins(x, n_bins, start=0, stop=1):
     assert n_bins > 1, "n_bins must be greater than 1"
