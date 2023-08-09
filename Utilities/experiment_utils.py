@@ -503,12 +503,17 @@ def fo_tree_histogram_average(data_list, function, title, divisions, n_buckets =
     Input: Array of dataframes, one for each agent.
     """
 
-    if divisions in [2,3]: colors = ["#5B8C5A"
-                ,"#56638A"
-                , "#EC7316"]
+    if divisions in [2,3]: 
+        colors = ["#5B8C5A" ,"#56638A" , "#EC7316"]
+        colors = ['#8cae8b', '#667295', '#8d450d']
     n_plots = len(data_list)
     even_spaces = 1/(n_plots+1)
     row_heights = [even_spaces for _ in range(n_plots)] + [even_spaces]
+
+    #print("row_heights", row_heights)
+    #print("subplot_titles", subplot_titles)
+    #print("specs", [[{"secondary_y": True}] for _ in range(n_plots+1)])
+
     fig = make_subplots(rows=n_plots+1
                         ,cols=1
                         ,shared_xaxes=True
@@ -815,6 +820,33 @@ def fo_function_analysis(fo_state, title, max_depth=3, max_val=None):
                                  "dash":"dash",
                                  }}, row="all", col=1)
    return fig
+
+def interpolate_colors(color1, color2, factor=0.5):
+    return tuple(int(a + (b - a) * factor) for a, b in zip(color1, color2))
+
+def darken_color(color, factor=0.5):
+    return interpolate_colors(color, (0, 0, 0), factor)
+
+def brighten_color(color, factor=0.5):
+    return interpolate_colors(color, (255, 255, 255), factor)
+
+def color_hex_to_rgb(color):
+    color = color.lstrip('#')
+    return tuple(int(color[i:i+2], 16) for i in (0, 2, 4))
+
+def color_rgb_to_hex(color):
+    return '#%02x%02x%02x' % color
+
+def view_color_palette(color_palette):
+    """ Color palette is a list of hex colors"""
+    fig, ax = plt.subplots(1, len(color_palette), figsize=(len(color_palette)*2, 2))
+
+    for i, color in enumerate(color_palette):
+        ax[i].add_patch(plt.Rectangle((0, 0), 1, 1, color=color))
+        ax[i].text(0.5, -0.2, str(color), ha='center', va='center')
+        ax[i].axis('off')
+
+    plt.show()
 
 def count_in_bins(x, n_bins, start=0, stop=1):
     assert n_bins > 1, "n_bins must be greater than 1"

@@ -68,7 +68,7 @@ class SIEA_MCTS_Player(MCTS_Player):
     def selection(self, node, my_tree_policy_formula=None, allow_evolution = True) -> Node:
         #Returns a node that can be expanded selecting by UCT
         assert node.state.is_terminal == False, "Selection called on a terminal node"
-        while not node.can_be_expanded() and not node.state.is_terminal:
+        if not node.can_be_expanded() and not node.state.is_terminal:
             if not self.hasGPTree and allow_evolution: 
                 self.GPTree = ES_Search(node, self)
                 #print("Finished evolving")
@@ -208,7 +208,6 @@ def ES_Search(RootNode, MCTS_Player):
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     toolbox.register("compile", gp.compile, pset=pset)
 
-
     def evalTree(individual, RootNode, mcts_player): #OK
         # Transform the tree expression in a callable function
         func = toolbox.compile(expr=individual)
@@ -238,6 +237,8 @@ def ES_Search(RootNode, MCTS_Player):
             
             #node = mcts_player.best_child_by_tree_policy(children = node.children.values(), my_tree_policy_formula = my_tree_policy_formula)
             node = mcts_player.selection(node, my_tree_policy_formula=my_tree_policy_formula, allow_evolution=False)
+
+            node = mcts_player.expansion(node)
 
             # play the move of this child node
             #stateCopy.make_action(node.edge_action)
@@ -324,7 +325,6 @@ def ES_Search(RootNode, MCTS_Player):
         fitness = np.mean(results)
         return fitness,
 
-    
     # register gp functions
     if MCTS_Player.unpaired_evolution:
         toolbox.register("evaluate", evalTreeClone, RootNode=RootNode, mcts_player=MCTS_Player)

@@ -41,7 +41,7 @@ class AvailableMove:
     """
     
     
-    def __init__(self, TileIndex, X, Y, Rotation, MeepleInfo = None):
+    def __init__(self, TileIndex, X, Y, Rotation, MeepleInfo = None, player_turn = None):
     
         self.TileIndex = TileIndex
         self.X = X
@@ -49,7 +49,8 @@ class AvailableMove:
         self.Rotation = Rotation
         self.MeepleInfo = MeepleInfo
         self.move = (TileIndex, X, Y, Rotation, MeepleInfo)
-        self.moveString = f'({TileIndex}, {X}, {Y}, {Rotation}, {MeepleInfo})'
+        self.player_turn = player_turn
+        self.moveString = f'({TileIndex}, {X}, {Y}, {Rotation}, {MeepleInfo}, {player_turn})'
         
     def __repr__(self):
         if self.MeepleInfo is not None:
@@ -70,6 +71,11 @@ class AvailableMove:
         else:
             MeepleString = ""
         
-        String = "TileIndex: " + str(self.TileIndex) + ", (X,Y): (" + str(self.X) + "," + str(self.Y) + "), Rotation: " + str(self.Rotation) + MeepleString
+        String = "P"+ str(self.player_turn)+ ",Tile" + str(self.TileIndex) + ",(X,Y)(" + str(self.X) + "," + str(self.Y) + "),Rot" + str(self.Rotation) + MeepleString
         return String
+    
+    def __hash__(self) -> int:
+        return hash(self.moveString)
         
+    def __eq__(self, other) -> bool:
+        return self.moveString == other.moveString
