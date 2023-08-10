@@ -112,7 +112,7 @@ class Node():
     def __str__(self):
         if self.is_chance_node: 
             node_type = "Chance_node"
-            ret = ", rand_type:" + str(ret)
+            ret = ", rand_type:" + str(self.random_event_type)
         else: 
             node_type = "Decision_node"
             ret = ""

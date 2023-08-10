@@ -97,8 +97,12 @@ class MCTS_RAVE(MCTS_Player):
             reward = node.average_reward() if node.parent.state.player_turn == self.player else -node.average_reward()
             amaf_reward = node.average_amaf_reward() if node.parent.state.player_turn == self.player else -node.average_amaf_reward()
 
-            #UCT_RAVE
-            return (1-b)*reward + b*amaf_reward + self.c * math.sqrt(math.log(node.parent.visits) / node.visits)
+            if node.amaf_visits > 0:
+                #UCT_RAVE
+                return (1-b)*reward + b*amaf_reward + self.c * math.sqrt(math.log(node.parent.visits) / node.visits)
+            else:
+                #UCT
+                return reward + self.c * math.sqrt(math.log(node.parent.visits) / node.visits)
 
     def agent_data(self):
         agent_data = super().agent_data()

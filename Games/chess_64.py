@@ -43,6 +43,27 @@ class GameState(base_games.BaseGameState):
 
         self.available_actions = [Action(move) for move in list(self.board.legal_moves)]
     
+    def set_state_from_FEN(self, FEN):
+        split_FEN = FEN.split(" ")
+        if split_FEN[1] == "w": 
+            self.player_turn = 0
+        else: 
+            self.player_turn = 1
+        self.turn = 1
+        self.is_terminal = False
+        self.reward = [None, None]
+        self.winner = None
+        self.board = chess.Board(FEN)
+
+        self.available_actions = [Action(move) for move in list(self.board.legal_moves)]
+
+    def set_puzzle_lichess_db(self, puzzle_row):
+        self.board = chess.Board(puzzle_row["FEN"])
+
+        #The first move in the puzzle is the last move played from the FEN
+        move_sequence = puzzle_row["Moves"].split(" ")
+        self.make_action(Action(move_sequence[0]))
+
     def make_action(self, action):
         self.board.push(action.move)
         self.available_actions = [Action(move) for move in list(self.board.legal_moves)]
