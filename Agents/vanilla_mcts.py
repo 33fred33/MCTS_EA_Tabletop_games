@@ -90,6 +90,29 @@ class Node():
             my_nodes = my_nodes + self.subtree_nodes(child)
         return my_nodes
 
+    def get_next_parent_decision_node(self):
+        temp_node = self
+        while temp_node.parent is not None:
+            if not temp_node.parent.is_chance_node:
+                return temp_node.parent
+            temp_node = temp_node.parent
+        return None
+    
+    def get_children_decision_nodes(self, node = None):
+        #Returns the first decision node of each subtree
+        if node is None:
+            node = self
+
+        collection = []
+
+        for child in node.children.values():
+            if child.is_chance_node:
+                collection = collection + self.get_children_decision_nodes(child)
+            else:
+                collection.append(child)
+        return collection
+
+
     def node_data(self):
         data = {
             "expansion_index": self.expansion_index,
@@ -185,9 +208,9 @@ class MCTS_Player(BaseAgent):
                 break
 
         if len(self.root_node.children) > 0:
-            to_return = max(self.root_node.children.values(), key= lambda x: x.visits).edge_action
+            to_return = self.recommendation_policy()
         else:
-            print(self.name, ": Random move returned")
+            #print(self.name, ": Random move returned")
             to_return = rd.choice(self.root_node.state.available_actions)
         
         #Update logs
@@ -197,7 +220,16 @@ class MCTS_Player(BaseAgent):
 
         return to_return
 
-    def iteration(self, node):
+    def recommendation_policy(self, root_node=None):
+        """Returns the action with the highest number of visits from the root node"""
+        if root_node is None:
+            root_node = self.root_node
+        return max(root_node.children.values(), key= lambda x: x.visits).edge_action
+
+    def iteration(self, node=None):
+
+        if node is None:
+            node = self.root_node
 
         #Selection
         node = self.selection(node) #this will always return a decision node
@@ -361,6 +393,16 @@ class MCTS_Player(BaseAgent):
 
         for child in node.children.values():
             my_string = my_string + self.view_mcts_tree(child, depth+1)
+        return my_string
+
+    def view_action_stats(self, node=None):
+        if node is None:
+            node = self.root_node
+        my_string = f"\n{str(node)}"
+
+        for child in node.children.values():
+            tpf = "{0:.3g}".format(self.tree_policy_formula(child))
+            my_string = my_string + f"\n{str(child)}, tree_policy_formula:" + str(tpf)
         return my_string
 
     def agent_data (self):

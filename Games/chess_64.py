@@ -6,17 +6,19 @@ import chess
 
 class Action():
 
-    def __init__(self, move):
+    def __init__(self, move, player_turn):
         self.move = move
+        self.player_turn = player_turn
 
     def __str__(self):
-        return str(self.move)
+        pt_str = "White" if self.player_turn == 0 else "Black"
+        return  pt_str + ":" + str(self.move)
     
     def __eq__(self, other):
-        return self.move == other.move
+        return str(self.move) == str(other.move) and self.player_turn == other.player_turn
 
     def __hash__(self):
-        return hash(self.move)
+        return hash(str(self.move) + str(self.player_turn))
     
 class GameState(base_games.BaseGameState):
     winner : int = None
@@ -41,7 +43,7 @@ class GameState(base_games.BaseGameState):
         self.winner = None
         self.board = chess.Board()
 
-        self.available_actions = [Action(move) for move in list(self.board.legal_moves)]
+        self.available_actions = [Action(move, player_turn=self.player_turn) for move in list(self.board.legal_moves)]
     
     def set_state_from_FEN(self, FEN):
         split_FEN = FEN.split(" ")
@@ -55,28 +57,29 @@ class GameState(base_games.BaseGameState):
         self.winner = None
         self.board = chess.Board(FEN)
 
-        self.available_actions = [Action(move) for move in list(self.board.legal_moves)]
+        self.available_actions = [Action(move, player_turn=self.player_turn) for move in list(self.board.legal_moves)]
 
     def set_puzzle_lichess_db(self, puzzle_row):
-        self.board = chess.Board(puzzle_row["FEN"])
+        self.set_state_from_FEN(puzzle_row["FEN"])
 
         #The first move in the puzzle is the last move played from the FEN
         move_sequence = puzzle_row["Moves"].split(" ")
-        self.make_action(Action(move_sequence[0]))
+        self.make_action(Action(self.board.parse_uci(move_sequence[0]), player_turn=self.player_turn))
 
     def make_action(self, action):
+        assert action.player_turn == self.player_turn, "Wrong player turn"
         self.board.push(action.move)
-        self.available_actions = [Action(move) for move in list(self.board.legal_moves)]
+        #self.available_actions = [Action(move) for move in list(self.board.legal_moves)]
         if self.board.is_game_over():
             if self.board.outcome().winner is None:
                 self._game_end(None)
-            elif self.board.outcome().winner: self._game_end(1)
-            else: self._game_end(0)
+            elif self.board.outcome().winner: self._game_end(0)
+            else: self._game_end(1)
             
         else:
             self.player_turn = 1 - self.player_turn
             self.turn += 1
-            self.available_actions = [Action(move) for move in list(self.board.legal_moves)]
+            self.available_actions = [Action(move, player_turn=self.player_turn) for move in list(self.board.legal_moves)]
 
     def _game_end(self, winner):
         self.is_terminal = True
@@ -100,7 +103,7 @@ class GameState(base_games.BaseGameState):
         the_duplicate.winner = self.winner
         the_duplicate.reward = [s for s in self.reward]
         the_duplicate.player_turn = self.player_turn
-        the_duplicate.available_actions = [Action(move) for move in list(self.board.legal_moves)]
+        the_duplicate.available_actions = [Action(move, player_turn=self.player_turn) for move in list(self.board.legal_moves)]
         the_duplicate.board = self.board.copy()
         return the_duplicate
 

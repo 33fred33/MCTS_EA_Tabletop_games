@@ -8,6 +8,8 @@ import pandas as pd
 import statistics as st
 
 import Games.mnk as mnk
+import Games.chess_64 as chess_64
+import chess
 import Agents.random as arand
 import Agents.vanilla_mcts as mcts 
 import os
@@ -159,8 +161,8 @@ class GamePlayer():
         for i, p in enumerate(self.players):
             return_string += "_P" + str(i) + "_" + p.name
         return return_string
-#
-# 
+
+
 def play_match(agents, game_state, games, file_path = None, random_seed = None, logs = True, logs_dispatch_after = 10):
     """Plays a match between two agents
     agents: list of agents
@@ -363,6 +365,131 @@ def evolved_formula_analysis(data):
    output_df = pd.DataFrame({k:[v] for k,v in output.items()})
    return output_df
 
+####Chess specific functions
+
+def chess_puzzle_test(puzzle_row, agent, continue_moves = False, iterations_logs_step = 10, runs = 1):
+    """
+    Runs a puzzle test for a given agent and puzzle
+    Input:
+        puzzle_row: row from the puzzle database
+        agent: mcts-based agent to test
+        continue_moves: if True, the agent will play until the end of the puzzle. If False, the agent will only play the first move
+        iterations_logs_step: number of iterations to run before collecting logs
+        runs: number of runs to execute
+
+    Output:
+        Return detailed logs, experiment parameters logs
+    """
+
+    logs = pd.DataFrame()
+    for run in range(runs):
+
+        #Setup state
+        chess_state = chess_64.GameState()
+        chess_state.set_puzzle_lichess_db(puzzle_row)
+
+        #Get actions from the puzzle, minus the first one because it is already executed by set_puzzle_lichess_db
+        remaining_moves = [m for m in puzzle_row["Moves"].split(" ")[1:]]
+        corrects = [None for _ in remaining_moves]
+        first_action_solution = None
+
+        #The agent may play as white or black
+        agent_player_index = chess_state.player_turn
+        player_turn = chess_state.player_turn
+
+        #Setup agent
+        kickstart_mcts_agent(agent, chess_state)
+
+        #Loop through the puzzle moves
+        for move_idx, move in enumerate(remaining_moves):
+            move = chess_state.board.parse_uci(move)
+            if move_idx == 0: first_action_solution = str(move)
+
+            #If it is the agent's turn, execute the action chosen by the agent
+            if player_turn == agent_player_index:
+
+                #chosen_action = agent.choose_action(chess_state)
+                total_iterations = 0
+                while total_iterations < agent.max_iterations:
+                    for i in range(iterations_logs_step):
+                        agent.iteration()
+                    total_iterations += iterations_logs_step
+                    chosen_action = agent.recommendation_policy()
+
+                    #Update logs in the agent
+                    agent.choose_action_logs = pd.DataFrame()
+                    agent._update_choose_action_logs()
+
+                    #Collect logs
+                    move_data = {}
+                    move_data["exp_run"] = [run]
+                    move_data["puzzle_move_index"] = [move_idx]
+                    move_data["iterations_executed"] = [total_iterations]
+                    move_data["current_chosen_move"] = [str(chosen_action.move)]
+                    move_data["expected_move"] = [str(move)]
+                    move_df = pd.DataFrame(move_data)
+                    move_logs = pd.concat([move_df, agent.choose_action_logs], axis = 1)
+
+                    logs = pd.concat([logs, move_logs], axis = 0)
+
+                #If the agent chose a different action, the puzzle is not solved
+                if chosen_action.move != move:
+                    corrects[move_idx] = False
+                else:
+                    corrects[move_idx] = True
+                
+                #If the agent chose the correct action, execute it
+                chess_state.make_action(chess_64.Action(move, player_turn=chess_state.player_turn))
+            
+            #If not the agent's turn, execute the defensive move from the puzzle
+            else:
+                chess_state.make_action(chess_64.Action(move, player_turn=chess_state.player_turn))
+
+            #Swap turn holder for the next move in the puzzle
+            if continue_moves: player_turn = 1 - player_turn
+            else: break
+
+    experiment_logs = pd.DataFrame()
+    experiment_logs = pd.concat([experiment_logs, agent.agent_data()], axis=1)
+    puzzle_row_df = pd.DataFrame([puzzle_row.tolist()], columns=puzzle_row.index)
+    experiment_logs = pd.concat([experiment_logs, puzzle_row_df], axis=1)
+    experiment_logs["expected_move"] = [str(move)]
+    correct_by_run = 0
+    iteration_as_last_choice = []
+    for run in range(runs):
+        run_logs = logs[logs["exp_run"]==run]
+        #print("Initial_run_logs_len", str(len(run_logs)))
+        final_row = run_logs.iloc[-1]
+        if final_row["current_chosen_move"] == first_action_solution:
+            correct_by_run += 1
+
+            #Find the last iteration where the agent chose the correct action without changing it again - Not working yet
+            correct_run_logs = run_logs[run_logs["current_chosen_move"]==first_action_solution]
+            last_unchanged_iteration = correct_run_logs["iterations_executed"].max()
+            #print("correct_run_logs_len",str(len(correct_run_logs)), "run_logs_len", str(len(run_logs)))
+            for i in reversed(range(len(correct_run_logs))[1:]):
+                if abs(correct_run_logs.iloc[i]["iterations_executed"] - correct_run_logs.iloc[i-1]["iterations_executed"]) == iterations_logs_step:
+                    #print("In update at", i, " and i-1 ", i-1, " with ", correct_run_logs.iloc[i]["iterations_executed"], " and ", correct_run_logs.iloc[i-1]["iterations_executed"])
+                    last_unchanged_iteration = correct_run_logs.iloc[i-1]["iterations_executed"]
+                else: 
+                    #print("Broken at", i, " and i-1 ", i-1, " with ", correct_run_logs.iloc[i]["iterations_executed"], " and ", correct_run_logs.iloc[i-1]["iterations_executed"])
+                    break
+            iteration_as_last_choice.append(last_unchanged_iteration)
+    if len(iteration_as_last_choice) > 0:
+        experiment_logs["iteration_solution_unchanged"] = st.mean(iteration_as_last_choice)
+    else:
+        experiment_logs["iteration_solution_unchanged"] = np.nan #when solution found, when was it last the best action unchanged?
+    experiment_logs["solved_ratio"] = [correct_by_run/runs]
+    
+    #Puzzle was solved
+    return logs, experiment_logs
+
+def kickstart_mcts_agent(agent, state):
+    agent_previous_iterations = agent.max_iterations
+    agent.max_iterations = 0
+    agent.choose_action(state)
+    agent.max_iterations = agent_previous_iterations
+    return agent
 
 #Visualisation
 def fo_tree_histogram(data_list, function, title, divisions, n_buckets = 100, subplot_titles=None, max_x_location = None, y_ref_value = None):

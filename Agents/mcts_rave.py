@@ -40,9 +40,10 @@ class MCTS_RAVE(MCTS_Player):
 
         #Coming from node to root
         while temp_node.parent is not None:
-            #Only care about nodes whose parent is not chance nodes
+            #Only care about nodes whose parent is not a chance node <- Wrong
             if not temp_node.parent.is_chance_node:
                 for n in temp_node.parent.children.values():
+                #for n in temp_node.parent.get_children_decision_nodes():
                     #If the node is not the one we are coming from
                     if n.edge_action != temp_node.edge_action:
                         #If the node's action is already in the AMAF list, we must update it
