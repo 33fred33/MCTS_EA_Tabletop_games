@@ -123,6 +123,8 @@ class Node():
             "state": str(self.state),
             "edge_action": str(self.edge_action),
             "is_chance_node": str(self.is_chance_node),
+            "expandable_actions": len(self.state.available_actions),
+            "can_be_expanded": self.can_be_expanded(),
         }
         if self.is_chance_node:
             data["random_event_type"] = self.random_event_type
@@ -132,6 +134,8 @@ class Node():
             data["amaf_avg_reward"] = self.average_amaf_reward()
         return pd.DataFrame(data, index=[0])
 
+
+
     def __str__(self):
         if self.is_chance_node: 
             node_type = "Chance_node"
@@ -140,7 +144,7 @@ class Node():
             node_type = "Decision_node"
             ret = ""
             
-        output_string = str(self.expansion_index) + ":" + node_type + ", edge:" + str(self.edge_action) + ", visits:" + str(self.visits) + ", avg_rwd:" + "{0:.3g}".format(self.average_reward()) + ", children:" + str(len(self.children)) + ret
+        output_string = str(self.expansion_index) + ":" + node_type + ", edge:" + str(self.edge_action) + ", visits:" + str(self.visits) + ", avg_rwd:" + "{0:.3g}".format(self.average_reward()) + ", children:" + str(len(self.children))+",from:"+str(len(self.state.available_actions)) + ret
 
         if self.amaf_visits > 0:
             output_string = output_string + ", amaf_visits:" + str(self.amaf_visits) + ", amaf_avg_rwd:" + "{0:.3g}".format(self.average_amaf_reward())
@@ -389,10 +393,24 @@ class MCTS_Player(BaseAgent):
             ucb = "{0:.3g}".format(self.tree_policy_formula(node))
         else: ucb = "None"
 
-        my_string = f"\n{'--'*depth}{str(node)}, tree_policy_formula:" + str(ucb)
+        my_string = f"\n{'--'*depth}{str(node)}, tree_policy:" + str(ucb)
 
         for child in node.children.values():
             my_string = my_string + self.view_mcts_tree(child, depth+1)
+        return my_string
+
+    def view_proven_tree(self, node=None, depth=0):
+        if node is None:
+            node = self.root_node
+        if depth != 0:
+            ucb = "{0:.3g}".format(self.tree_policy_formula(node))
+        else: ucb = "None"
+
+        my_string = f"\n{'--'*depth}{str(node)}, tree_policy:" + str(ucb) + "children:" + str(len(node.children))
+
+        for child in node.children.values():
+            if child.average_reward() == np.inf or child.average_reward() == -np.inf:
+                my_string = my_string + self.view_mcts_tree(child, depth+1)
         return my_string
 
     def view_action_stats(self, node=None):
@@ -425,10 +443,10 @@ class MCTS_Player(BaseAgent):
             "forward_model_calls": self.current_fm,
             "current_time": self.current_time,
             "current_iterations": self.current_iterations,
-            "root_node_visits": str(self.root_node.visits),
-            "root_node_avg_reward": self.root_node.average_reward() if self.root_node.visits > 0 else np.nan ,
+            "root_node_visits": self.root_node.visits,
+            "root_node_avg_reward": self.root_node.average_reward(),
             "nodes_count": self.nodes_count,
-            #"root_nodes_count": self.root_node.subtree_nodes(), 
+            "playing_as": self.player,
         }
         for i,c in enumerate(self.root_node.children.values()):
             data_dict["action" + str(i)] = str(c.edge_action)
@@ -439,6 +457,7 @@ class MCTS_Player(BaseAgent):
             data_dict["action" + str(i) + "_tree_policy_formula"] = self.tree_policy_formula(c)
         action_df = pd.DataFrame(data_dict, index=[0])
         action_df = pd.concat([action_df, self.agent_data()], axis=1)
+        action_df = pd.concat([action_df, self.root_node.node_data()], axis = 1)
         self.choose_action_logs = pd.concat([self.choose_action_logs, action_df], axis=1)
 
     def dump_my_logs(self, path):

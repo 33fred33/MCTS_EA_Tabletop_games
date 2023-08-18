@@ -54,7 +54,7 @@ class GameState(base_games.BaseGameState):
             if m==n and k==3 and m==3:
                 self.name = "TicTacToe"
             else:
-                self.name = "mnk"
+                self.name = "mnk_m" + str(m) + "-n" + str(n) +"-k" + str(k)
         else: self.name = name
         self.m = m
         self.n = n 
@@ -110,6 +110,14 @@ class GameState(base_games.BaseGameState):
 
         #Initialise available actions
         self._available_actions = [{location:Action(player_index=player_index,x=location[0],y=location[1]) for location in self.board.keys()} for player_index in [0,1]]
+        self._update_available_actions()
+
+    def set_board(self, board_items, player_turn):
+        self.set_initial_state()
+        self.player_turn = player_turn
+        for key,value in board_items.items():
+            self.board[key] = value
+        self._available_actions = [{location:Action(player_index=player_index,x=location[0],y=location[1]) for location in self.board.keys() if self.board[location] is None} for player_index in [0,1]]
         self._update_available_actions()
 
     def _update_available_actions(self):
@@ -171,8 +179,8 @@ class GameState(base_games.BaseGameState):
         for x in range(self.m):
             for y in range(self.n):
                 if self.board[(x,y)] is not None:
-                    temp_board[x][y] = "X" if self.board[(x,y)]==0 else "O"
-        print(temp_board)
+                    temp_board[x][self.n-y-1] = "X" if self.board[(x,y)]==0 else "O"
+        print(temp_board.T)
 
     def duplicate(self):
         the_duplicate = GameState(m=self.m, 
