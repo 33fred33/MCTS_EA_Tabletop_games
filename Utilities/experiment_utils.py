@@ -429,6 +429,13 @@ def chess_puzzle_test(puzzle_row, agent, continue_moves = False, iterations_logs
                     move_data["expected_move"] = [str(move)]
                     move_df = pd.DataFrame(move_data)
                     move_logs = pd.concat([move_df, agent.choose_action_logs], axis = 1)
+                    move_logs.set_index(["exp_run", "puzzle_move_index", "iterations_executed"], inplace=True, append = True, drop = False)
+
+                    #Find duplicated columns in move_logs
+                    duplicated_columns = move_logs.columns[move_logs.columns.duplicated()]
+                    if len(duplicated_columns) > 0:
+                        move_logs.drop(columns=duplicated_columns, inplace=True)
+                        #print("Dropped duplicated columns", duplicated_columns)
 
                     logs = pd.concat([logs, move_logs], axis = 0)
 

@@ -112,7 +112,6 @@ class Node():
                 collection.append(child)
         return collection
 
-
     def node_data(self):
         data = {
             "expansion_index": self.expansion_index,
@@ -133,8 +132,6 @@ class Node():
             data["amaf_visits"] = self.amaf_visits
             data["amaf_avg_reward"] = self.average_amaf_reward()
         return pd.DataFrame(data, index=[0])
-
-
 
     def __str__(self):
         if self.is_chance_node: 
@@ -228,7 +225,11 @@ class MCTS_Player(BaseAgent):
         """Returns the action with the highest number of visits from the root node"""
         if root_node is None:
             root_node = self.root_node
-        return max(root_node.children.values(), key= lambda x: x.visits).edge_action
+        #return max(root_node.children.values(), key= lambda x: x.visits).edge_action
+        def node_visits(node):
+            return node.visits
+        
+        return self.best_child_by_tree_policy(root_node.children.values(), my_tree_policy_formula=node_visits)
 
     def iteration(self, node=None):
 
@@ -369,6 +370,7 @@ class MCTS_Player(BaseAgent):
     def best_child_by_tree_policy(self, children, my_tree_policy_formula=None):
         """
         Children is a list of nodes
+        my_tree_policy_formula is a function that takes a node and returns a value
         Returns a node with the maximum tree policy value. If there are more than one, returns a random one
         """
         assert len(children) > 0, "No children to choose from"
@@ -386,6 +388,10 @@ class MCTS_Player(BaseAgent):
         assert len(best_children) > 0, "No best children found"
         return rd.choice(best_children)
         
+    def set_tree(self, node):
+        self.root_node = node
+        self.nodes_count = len(self.root_node.subtree_nodes())
+
     def view_mcts_tree(self, node=None, depth=0):
         if node is None:
             node = self.root_node

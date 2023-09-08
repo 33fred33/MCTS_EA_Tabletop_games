@@ -33,25 +33,33 @@ agent_rollouts = 1
 max_iterations = 5000
 iterations_logs_step = 50
 random_seed = 1234
-experiment_path = os.path.join("Outputs", "Chess_puzzles_results")
+experiment_path = os.path.join("Outputs", "Chess_puzzles_results_siea")
 
 #set random seed
 rd.seed(random_seed)
 np.random.seed(random_seed)
 
 #experiment
-mcts_agent = mcts.MCTS_Player(max_iterations = max_iterations, rollouts=agent_rollouts)
-lichess_db = pd.read_csv("Datasets/lichess_1000_most_played.csv")
-for puzzle_idx, puzzle_row in lichess_db.iterrows():
-    game_state = chess_64.GameState()
-    try:
-        game_state.set_puzzle_lichess_db(puzzle_row)
-    except:
-        continue
 
-    results, parameters = eu.chess_puzzle_test(puzzle_row=puzzle_row, agent=mcts_agent, iterations_logs_step=iterations_logs_step)
-    lm.dump_data(results, file_path= os.path.join(experiment_path, "Puzzle_"+ str(puzzle_idx)), file_name="results_every_"+ str(iterations_logs_step) +".csv")
-    lm.dump_data(parameters, file_path= os.path.join(experiment_path, "Puzzle_"+ str(puzzle_idx)), file_name="experiment_data.csv")
+#agent
+#mcts_agent = mcts.MCTS_Player(max_iterations = max_iterations, rollouts=agent_rollouts)
+mcts_agent = siea_mcts.SIEA_MCTS_Player(max_iterations = max_iterations, rollouts=agent_rollouts)
+
+#dataset
+#lichess_db = pd.read_csv("Datasets/lichess_1000_most_played.csv")
+lichess_db = pd.read_csv("Datasets/lichess_db_puzzle_subsample.csv")
+
+for puzzle_idx, puzzle_row in lichess_db.iterrows():
+    if puzzle_idx >= 93:
+        game_state = chess_64.GameState()
+        try:
+            game_state.set_puzzle_lichess_db(puzzle_row)
+        except:
+            continue
+
+        results, parameters = eu.chess_puzzle_test(puzzle_row=puzzle_row, agent=mcts_agent, iterations_logs_step=iterations_logs_step)
+        lm.dump_data(results, file_path= os.path.join(experiment_path, "Puzzle_"+ str(puzzle_idx)), file_name="results_every_"+ str(iterations_logs_step) +".csv")
+        lm.dump_data(parameters, file_path= os.path.join(experiment_path, "Puzzle_"+ str(puzzle_idx)), file_name="experiment_data.csv")
 
 
 

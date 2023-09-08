@@ -7,7 +7,7 @@ from statistics import mean
 import math
 import os
 import pandas as pd
-from Agents.vanilla_mcts import MCTS_Player, Node
+import Agents.vanilla_mcts as vmcts# import MCTS_Player, Node
 from Agents.random import RandomPlayer
 import statistics as st
 import Utilities.logs_management as lm
@@ -24,7 +24,7 @@ creator.create("FitnessMax", base.Fitness, weights=(1.0,)) #This can be outside
 # define the structure of the programs 
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)  #This can be outside
 
-class SIEA_MCTS_Player(MCTS_Player):
+class SIEA_MCTS_Player(vmcts.MCTS_Player):
 
     def __init__(self, 
                  rollouts=1, 
@@ -65,7 +65,7 @@ class SIEA_MCTS_Player(MCTS_Player):
         to_return = super().choose_action(state)
         return to_return
 
-    def selection(self, node, my_tree_policy_formula=None, allow_evolution = True) -> Node:
+    def selection(self, node, my_tree_policy_formula=None, allow_evolution = True):
         #Returns a node that can be expanded selecting by UCT
         assert node.state.is_terminal == False, "Selection called on a terminal node"
         if not node.can_be_expanded() and not node.state.is_terminal:
@@ -133,8 +133,8 @@ class SIEA_MCTS_Player(MCTS_Player):
             semantics_chose_randomly_filtered = [x for x in self.evolution_logs["semantics_chose_randomly"] if x is not None]
             evolution_data["semantics_chose_randomly_ratio"] = st.mean(semantics_chose_randomly_filtered) if len(semantics_chose_randomly_filtered) > 0 else None
 
-        evolution_df = pd.DataFrame(evolution_data, index=[0])
-        self.choose_action_logs = pd.concat([self.choose_action_logs, evolution_df], axis=1)
+            evolution_df = pd.DataFrame(evolution_data, index=[0])
+            self.choose_action_logs = pd.concat([self.choose_action_logs, evolution_df], axis=1)
 
     def dump_my_logs(self, path):
         super().dump_my_logs(path)
@@ -238,7 +238,7 @@ def ES_Search(RootNode, MCTS_Player):
             #node = mcts_player.best_child_by_tree_policy(children = node.children.values(), my_tree_policy_formula = my_tree_policy_formula)
             node = mcts_player.selection(node, my_tree_policy_formula=my_tree_policy_formula, allow_evolution=False)
 
-            node = mcts_player.expansion(node)
+            #node = mcts_player.expansion(node)
 
             # play the move of this child node
             #stateCopy.make_action(node.edge_action)
@@ -270,9 +270,58 @@ def ES_Search(RootNode, MCTS_Player):
     def evalTreeClone(individual, RootNode, mcts_player): #OK
         # Transform the tree expression in a callable function
         func = toolbox.compile(expr=individual)
-        root_node = RootNode.duplicate()
         results = []
 
+        #Set mcts clone
+        root_node = RootNode.duplicate()
+        dummy_mcts = vmcts.MCTS_Player(rollouts=1, c=mcts_player.c, max_iterations=0, default_policy=mcts_player.default_policy, name=mcts_player.name + "_dummy", logs = False)
+        dummy_mcts.choose_action(root_node.state)
+        dummy_mcts.set_tree(root_node) 
+
+        #Changes reward, not whole expression
+        def my_tree_policy_formula(node):
+            if node.visits == 0:
+                return np.inf
+            if node.parent.state.player_turn == dummy_mcts.player:
+                return func(node.average_reward(), node.visits, node.parent.visits) 
+            else:
+                return func(-node.average_reward(), node.visits, node.parent.visits)
+
+        for i in range(es_fitness_iterations):
+            
+            node = root_node
+            ##### Selection #####
+            node = dummy_mcts.selection(node, my_tree_policy_formula=my_tree_policy_formula)
+            
+            ##### Expansion #####
+            if node.can_be_expanded():
+                node = dummy_mcts.expansion(node)
+
+            ##### Simulation #####
+            reward = dummy_mcts.simulation(node, 1, dummy_mcts.default_policy) 
+            results.append(reward)
+            
+            ##### Backpropagation #####
+            dummy_mcts.backpropagation(node, reward)
+        
+        #update variables
+        mcts_player.evolution_fm_calls = mcts_player.evolution_fm_calls + dummy_mcts.current_fm
+        mcts_player.current_fm = mcts_player.current_fm + dummy_mcts.current_fm
+
+        # semantics check  
+        individual.semantics = sorted(results)
+        
+        #fitness = eu.best_leaf_node(root_node, criteria="avg_reward").average_reward() #Only works for one player games
+        fitness = np.mean(results)
+        return fitness,
+
+    def evalTreeExpand(individual, RootNode, mcts_player): #OK
+        # Transform the tree expression in a callable function
+        root_node = RootNode
+        func = toolbox.compile(expr=individual)
+        results = []
+
+        #Changes reward, not whole expression
         def my_tree_policy_formula(node):
             if node.visits == 0:
                 return np.inf
@@ -280,44 +329,28 @@ def ES_Search(RootNode, MCTS_Player):
                 return func(node.average_reward(), node.visits, node.parent.visits) 
             else:
                 return func(-node.average_reward(), node.visits, node.parent.visits)
-                
+
+        starting_fm = mcts_player.current_fm
         for i in range(es_fitness_iterations):
             
             node = root_node
             ##### Selection #####
-            while not node.can_be_expanded() and not node.state.is_terminal:
-                node = mcts_player.best_child_by_tree_policy(children = node.children.values(), my_tree_policy_formula = my_tree_policy_formula)
+            node = mcts_player.selection(node, my_tree_policy_formula=my_tree_policy_formula, allow_evolution=False)
             
             ##### Expansion #####
             if node.can_be_expanded():
-                action = node.random_available_action()
+                node = mcts_player.expansion(node)
 
-                #New state
-                duplicate_state = node.state.duplicate()
-                duplicate_state.make_action(action)
-
-                #Add node to tree
-                node = node.add_child(action, duplicate_state, expansion_index=None)
-
-                mcts_player.current_fm = mcts_player.current_fm + 1
-                mcts_player.evolution_fm_calls = mcts_player.evolution_fm_calls + 1
-
-            #rollout
-            stateCopy = node.state.duplicate()
-            while not stateCopy.is_terminal:
-                action = mcts_player.default_policy.choose_action(stateCopy)
-                stateCopy.make_action(action)
-                mcts_player.current_fm = mcts_player.current_fm + 1
-                mcts_player.evolution_fm_calls = mcts_player.evolution_fm_calls + 1
-            # result
-            reward = stateCopy.reward[mcts_player.player]
+            ##### Simulation #####
+            reward = mcts_player.simulation(node, 1, mcts_player.default_policy) 
             results.append(reward)
             
             ##### Backpropagation #####
-            while node != None:  # backpropogate from the expected node and work back until reaches root_node
-                node.update(new_reward = reward)
-                node = node.parent
+            mcts_player.backpropagation(node, reward)
         
+        #update variables
+        mcts_player.evolution_fm_calls = mcts_player.evolution_fm_calls + mcts_player.current_fm - starting_fm
+
         # semantics check  
         individual.semantics = sorted(results)
         
@@ -327,7 +360,7 @@ def ES_Search(RootNode, MCTS_Player):
 
     # register gp functions
     if MCTS_Player.unpaired_evolution:
-        toolbox.register("evaluate", evalTreeClone, RootNode=RootNode, mcts_player=MCTS_Player)
+        toolbox.register("evaluate", evalTreeExpand, RootNode=RootNode, mcts_player=MCTS_Player)
     else:
         toolbox.register("evaluate", evalTree, RootNode=RootNode, mcts_player=MCTS_Player)
     toolbox.register("select", selBestCustom)
@@ -381,7 +414,7 @@ def ES_Search(RootNode, MCTS_Player):
         #MCTS_Player._update_choose_action_logs(pd.DataFrame(data, index=[0])) 
         MCTS_Player.choose_action_logs = pd.concat([MCTS_Player.choose_action_logs, pd.DataFrame(data, index=[0])], axis=1)
         
-        #print(f'Chosen formula: {formula}')
+        print(f'Chosen formula: {formula}')
         return toolbox.compile(expr=hof[0])
         #return toolbox.compile(UCT_GP_Tree)
 

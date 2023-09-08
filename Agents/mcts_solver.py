@@ -139,7 +139,9 @@ class MCTS_Solver(MCTS_Player):
         """Secure child recommendation policy"""
         if root_node is None:
             root_node = self.root_node
-        return max(root_node.children.values(), key= lambda x: x.average_reward() + self.secure_child_A/math.sqrt(x.visits)).edge_action
+        children = root_node.children.values()
+        rd.shuffle(children)
+        return max(children, key= lambda x: x.average_reward() + self.secure_child_A/math.sqrt(x.visits)).edge_action
 
     def agent_data(self):
         agent_data = super().agent_data()
