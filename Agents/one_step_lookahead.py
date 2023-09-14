@@ -3,6 +3,7 @@ from Agents.base_agents import BaseAgent
 import pandas as pd
 import Utilities.logs_management as lm
 import numpy as np
+import Games.chess_64 as chess_64
 
 class OSLA_Wins(BaseAgent):
     
@@ -30,12 +31,21 @@ class OSLA_Wins(BaseAgent):
             actions_to_test = state.available_actions
 
         for action in actions_to_test:
-            duplicate_state = state.duplicate()
-            duplicate_state.make_action(action)
-            self.current_fm += 1
-            if duplicate_state.is_terminal:
-                if duplicate_state.winner == self.player:
-                    return action
+            if isinstance(state, chess_64.GameState):
+                state.make_action(action)
+                self.current_fm += 1
+                if state.is_terminal:
+                    if state.winner == self.player:
+                        state.undo_move()
+                        return action
+                state.undo_move()
+            else:
+                duplicate_state = state.duplicate()
+                duplicate_state.make_action(action)
+                self.current_fm += 1
+                if duplicate_state.is_terminal:
+                    if duplicate_state.winner == self.player:
+                        return action
         if probing_limited:
             return actions_to_test[-1]
         return rd.choice(state.available_actions)

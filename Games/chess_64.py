@@ -66,6 +66,17 @@ class GameState(base_games.BaseGameState):
         move_sequence = puzzle_row["Moves"].split(" ")
         self.make_action(Action(self.board.parse_uci(move_sequence[0]), player_turn=self.player_turn))
 
+    def undo_move(self):
+        if self.is_terminal:
+            self.is_terminal = False
+            self.winner = None
+            self.reward = [None, None]
+        else:
+            self.player_turn = 1 - self.player_turn
+            self.turn -= 1
+        self.board.pop()
+        self.available_actions = [Action(move, player_turn=self.player_turn) for move in list(self.board.legal_moves)]
+
     def make_action(self, action):
         assert action.player_turn == self.player_turn, "Wrong player turn"
         self.board.push(action.move)

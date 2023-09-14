@@ -13,6 +13,7 @@ import statistics as st
 import Utilities.logs_management as lm
 import Utilities.experiment_utils as eu
 import Games.base_games as bg
+import Games.chess_64 as chess_64
 
 
 class MCTS_Solver(MCTS_Player):
@@ -72,17 +73,33 @@ class MCTS_Solver(MCTS_Player):
 
         #Check if any of the immediately available states is terminal
         if len(node.children) == 0 and node.is_chance_node == False:
-            for move in node.state.available_actions:
-                state_duplicate = node.state.duplicate()
-                state_duplicate.make_action(move)
-                self.current_fm = self.current_fm + 1
-                if state_duplicate.is_terminal:
 
-                    #If the terminal state is a win for the player that makes the action, the node gets proven.
-                    if state_duplicate.winner == node.state.player_turn:
-                        expanded_node = node.add_child(edge_content=move, state=state_duplicate, expansion_index=self.nodes_count)
-                        self.nodes_count += 1
-                        return expanded_node
+            if isinstance(node.state, chess_64.GameState): #faster in chess to undo move than to duplicate
+                state_duplicate = node.state.duplicate()
+                for move in node.state.available_actions:
+                    state_duplicate.make_action(move)
+                    self.current_fm = self.current_fm + 1
+                    if state_duplicate.is_terminal:
+
+                        #If the terminal state is a win for the player that makes the action, the node gets proven.
+                        if state_duplicate.winner == node.state.player_turn:
+                            expanded_node = node.add_child(edge_content=move, state=state_duplicate, expansion_index=self.nodes_count)
+                            self.nodes_count += 1
+                            return expanded_node
+                    state_duplicate.undo_move()
+
+            else:
+                for move in node.state.available_actions:
+                    state_duplicate = node.state.duplicate()
+                    state_duplicate.make_action(move)
+                    self.current_fm = self.current_fm + 1
+                    if state_duplicate.is_terminal:
+
+                        #If the terminal state is a win for the player that makes the action, the node gets proven.
+                        if state_duplicate.winner == node.state.player_turn:
+                            expanded_node = node.add_child(edge_content=move, state=state_duplicate, expansion_index=self.nodes_count)
+                            self.nodes_count += 1
+                            return expanded_node
 
         return super().expansion(node)
 

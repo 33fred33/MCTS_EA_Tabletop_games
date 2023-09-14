@@ -498,6 +498,98 @@ def kickstart_mcts_agent(agent, state):
     agent.max_iterations = agent_previous_iterations
     return agent
 
+def analyse_puzzles_by_tag(results_df):
+    """
+    results_df = dataframe with the results, edeom extended with moves count, depth, theme count
+    file_name = for the output file
+    """
+    tag_dict = {}
+    all_tags = []
+    for row in results_df.iterrows():
+        tags = row[1]['Themes'].split(' ')
+        for tag in tags:
+            if tag not in all_tags:
+                all_tags.append(tag)
+
+    for tag in all_tags:
+        subset_df = results_df[results_df['Themes'].str.contains(tag)]
+        tag_count = len(subset_df)
+        #correct_subset = subset_df[subset_df['solved_ratio'] == 1]
+        #tag_correct_count = len(correct_subset)
+        tag_dict[tag] = [tag_count/len(results_df),tag_count]
+        #get average_rating
+        if tag_count > 1:
+            tag_dict[tag].append(subset_df['Rating'].mean())
+            tag_dict[tag].append(subset_df['Rating'].std())
+            tag_dict[tag].append(subset_df["Available_actions"].mean())
+            tag_dict[tag].append(subset_df['Available_actions'].std())
+            tag_dict[tag].append(subset_df["NbPlays"].mean())
+            tag_dict[tag].append(subset_df['NbPlays'].std())
+            tag_dict[tag].append(subset_df["Pieces"].mean())
+            tag_dict[tag].append(subset_df['Pieces'].std())
+            tag_dict[tag].append(subset_df["Theme_count"].mean())
+            tag_dict[tag].append(subset_df['Theme_count'].std())
+            tag_dict[tag].append(subset_df["Required_moves"].mean())
+            tag_dict[tag].append(subset_df["Required_moves"].std())
+        else:
+            print(subset_df['Rating'])
+            tag_dict[tag].append(subset_df['Rating'])
+            tag_dict[tag].append(0)
+            tag_dict[tag].append(subset_df["Available_actions"])
+            tag_dict[tag].append(0)
+            tag_dict[tag].append(subset_df["NbPlays"])
+            tag_dict[tag].append(0)
+            tag_dict[tag].append(subset_df["Pieces"])
+            tag_dict[tag].append(0)
+            tag_dict[tag].append(subset_df["Theme_count"])
+            tag_dict[tag].append(0)
+            tag_dict[tag].append(subset_df["Required_moves"])
+            tag_dict[tag].append(0)
+
+    tag_df = pd.DataFrame.from_dict(tag_dict, orient='index', columns=["appearance_ratio","count","average_rating","std_rating","average_available_moves","std_available_moves","average_nb_plays","std_nb_plays","pieces","std_pieces","tag_count","std_tag_count","required_moves","required_moves_std_depth"])
+    return tag_df
+
+def extend_lichess_db(file_path, file_name):
+    """
+    file_path = string path to file
+    file_name = string name of file with .csv extension
+    Add number of moves to puzzles
+    Add moves depth to puzzles
+    Add theme count to puzzles
+    """
+    game_state = chess_64.GameState()
+    lichess_db = pd.read_csv(os.path.join(file_path, file_name))
+    moves_count_list = [None for _ in range(len(lichess_db))]
+    piece_count_list = [None for _ in range(len(lichess_db))]
+    tags_count_list = [None for _ in range(len(lichess_db))]
+    required_moves = [None for _ in range(len(lichess_db))]
+    player_to_move = [None for _ in range(len(lichess_db))]
+
+    for puzzle_idx, puzzle_row in lichess_db.iterrows():
+        game_state.set_puzzle_lichess_db(puzzle_row)
+        moves_count_list[puzzle_idx] = len(game_state.available_actions)
+
+
+        fen = puzzle_row["FEN"].split(" ")[0]
+        piece_count_list[puzzle_idx] = sum(c.isalpha() for c in fen)
+        tags_count_list[puzzle_idx] = len(puzzle_row["Themes"].split(" "))
+        required_moves[puzzle_idx] = int(len(puzzle_row["Moves"].split(" "))/2)
+        player_to_move[puzzle_idx] = game_state.player_turn
+
+        if puzzle_idx % 100000 == 0:
+            print(puzzle_idx)
+
+            #save in csv progress
+            #moves_count_df = pd.DataFrame({"Moves":moves_count_list})
+            #moves_count_df.to_csv("Datasets/lichess_db_puzzle_moves_temp.csv", index=False)
+
+    lichess_db["Available_actions"] = moves_count_list
+    lichess_db["Pieces"] = piece_count_list
+    lichess_db["Theme_count"] = tags_count_list
+    lichess_db["Required_moves"] = required_moves
+    lichess_db["Player_to_move"] = player_to_move
+    return lichess_db
+
 #Visualisation
 def fo_tree_histogram(data_list, function, title, divisions, n_buckets = 100, subplot_titles=None, max_x_location = None, y_ref_value = None):
     """

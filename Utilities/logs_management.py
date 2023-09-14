@@ -23,9 +23,9 @@ def dump_data(data:DataFrame, file_path:str, file_name:str, mode="w") -> DataFra
    #Create file
    file_path = os.path.join(file_path, file_name)
    if mode == "a":
-      data.to_csv(file_path, mode=mode, index=False, header = not os.path.exists(file_path))
+      data.to_csv(file_path, mode=mode, header = not os.path.exists(file_path))
    else:
-      data.to_csv(file_path, mode=mode, index=False, header = True)
+      data.to_csv(file_path, mode=mode, header = True)
    return data.iloc[0:0]
 
 def combine_logs(output_path, output_name, files_paths = []):
