@@ -504,7 +504,7 @@ def analyse_puzzles_by_tag(results_df):
     file_name = for the output file
     """
     tag_dict = {}
-    all_tags = []
+    all_tags = ["ALLTOGETHER"]
     for row in results_df.iterrows():
         tags = row[1]['Themes'].split(' ')
         for tag in tags:
@@ -512,7 +512,11 @@ def analyse_puzzles_by_tag(results_df):
                 all_tags.append(tag)
 
     for tag in all_tags:
-        subset_df = results_df[results_df['Themes'].str.contains(tag)]
+        if tag == "ALLTOGETHER":
+            subset_df = results_df
+        else:
+            subset_df = results_df[results_df['Themes'].str.contains(tag)]
+            
         tag_count = len(subset_df)
         #correct_subset = subset_df[subset_df['solved_ratio'] == 1]
         #tag_correct_count = len(correct_subset)
@@ -532,18 +536,18 @@ def analyse_puzzles_by_tag(results_df):
             tag_dict[tag].append(subset_df["Required_moves"].mean())
             tag_dict[tag].append(subset_df["Required_moves"].std())
         else:
-            print(subset_df['Rating'])
-            tag_dict[tag].append(subset_df['Rating'])
+            #print(subset_df["Rating"].iat[0])
+            tag_dict[tag].append(subset_df['Rating'].iat[0])
             tag_dict[tag].append(0)
-            tag_dict[tag].append(subset_df["Available_actions"])
+            tag_dict[tag].append(subset_df["Available_actions"].iat[0])
             tag_dict[tag].append(0)
-            tag_dict[tag].append(subset_df["NbPlays"])
+            tag_dict[tag].append(subset_df["NbPlays"].iat[0])
             tag_dict[tag].append(0)
-            tag_dict[tag].append(subset_df["Pieces"])
+            tag_dict[tag].append(subset_df["Pieces"].iat[0])
             tag_dict[tag].append(0)
-            tag_dict[tag].append(subset_df["Theme_count"])
+            tag_dict[tag].append(subset_df["Theme_count"].iat[0])
             tag_dict[tag].append(0)
-            tag_dict[tag].append(subset_df["Required_moves"])
+            tag_dict[tag].append(subset_df["Required_moves"].iat[0])
             tag_dict[tag].append(0)
 
     tag_df = pd.DataFrame.from_dict(tag_dict, orient='index', columns=["appearance_ratio","count","average_rating","std_rating","average_available_moves","std_available_moves","average_nb_plays","std_nb_plays","pieces","std_pieces","tag_count","std_tag_count","required_moves","required_moves_std_depth"])

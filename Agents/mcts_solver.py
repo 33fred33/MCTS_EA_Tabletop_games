@@ -48,7 +48,6 @@ class MCTS_Solver(MCTS_Player):
             self.iteration(self.root_node)
 
             #Update criteria
-            self.current_iterations = self.current_iterations + 1
             self.current_time = time.time() - start_time
 
             #Check if iterations are still calling fm
@@ -73,7 +72,7 @@ class MCTS_Solver(MCTS_Player):
 
         #Check if any of the immediately available states is terminal
         if len(node.children) == 0 and node.is_chance_node == False:
-
+            #"""
             if isinstance(node.state, chess_64.GameState): #faster in chess to undo move than to duplicate
                 state_duplicate = node.state.duplicate()
                 for move in node.state.available_actions:
@@ -100,6 +99,7 @@ class MCTS_Solver(MCTS_Player):
                             expanded_node = node.add_child(edge_content=move, state=state_duplicate, expansion_index=self.nodes_count)
                             self.nodes_count += 1
                             return expanded_node
+            #"""
 
         return super().expansion(node)
 
@@ -157,7 +157,7 @@ class MCTS_Solver(MCTS_Player):
         if root_node is None:
             root_node = self.root_node
         children = root_node.children.values()
-        rd.shuffle(children)
+        #rd.shuffle(children)
         return max(children, key= lambda x: x.average_reward() + self.secure_child_A/math.sqrt(x.visits)).edge_action
 
     def agent_data(self):

@@ -229,7 +229,7 @@ class MCTS_Player(BaseAgent):
         def node_visits(node):
             return node.visits
         
-        return self.best_child_by_tree_policy(root_node.children.values(), my_tree_policy_formula=node_visits)
+        return self.best_child_by_tree_policy(root_node.children.values(), my_tree_policy_formula=node_visits).edge_action
 
     def iteration(self, node=None):
 
@@ -248,6 +248,8 @@ class MCTS_Player(BaseAgent):
 
         #Backpropagation
         self.backpropagation(node, reward)
+
+        self.current_iterations = self.current_iterations + 1
 
     def selection(self, node, my_tree_policy_formula = None) -> Node:
         #Returns a node that can be expanded selecting by UCT
@@ -416,7 +418,7 @@ class MCTS_Player(BaseAgent):
 
         for child in node.children.values():
             if child.average_reward() == np.inf or child.average_reward() == -np.inf:
-                my_string = my_string + self.view_mcts_tree(child, depth+1)
+                my_string = my_string + self.view_proven_tree(child, depth+1)
         return my_string
 
     def view_action_stats(self, node=None):
