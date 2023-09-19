@@ -394,7 +394,7 @@ class MCTS_Player(BaseAgent):
         self.root_node = node
         self.nodes_count = len(self.root_node.subtree_nodes())
 
-    def view_mcts_tree(self, node=None, depth=0):
+    def view_mcts_tree(self, node=None, depth=0, max_depth = np.inf):
         if node is None:
             node = self.root_node
         if depth != 0:
@@ -403,11 +403,14 @@ class MCTS_Player(BaseAgent):
 
         my_string = f"\n{'--'*depth}{str(node)}, tree_policy:" + str(ucb)
 
+        if depth == max_depth:
+            return my_string
+        
         for child in node.children.values():
-            my_string = my_string + self.view_mcts_tree(child, depth+1)
+            my_string = my_string + self.view_mcts_tree(child, depth+1, max_depth=max_depth)
         return my_string
 
-    def view_proven_tree(self, node=None, depth=0):
+    def view_proven_tree(self, node=None, depth=0, max_depth = np.inf):
         if node is None:
             node = self.root_node
         if depth != 0:
@@ -416,9 +419,12 @@ class MCTS_Player(BaseAgent):
 
         my_string = f"\n{'--'*depth}{str(node)}, tree_policy:" + str(ucb) + "children:" + str(len(node.children))
 
+        if depth == max_depth:
+            return my_string
+
         for child in node.children.values():
             if child.average_reward() == np.inf or child.average_reward() == -np.inf:
-                my_string = my_string + self.view_proven_tree(child, depth+1)
+                my_string = my_string + self.view_proven_tree(child, depth+1, max_depth=max_depth)
         return my_string
 
     def view_action_stats(self, node=None):
