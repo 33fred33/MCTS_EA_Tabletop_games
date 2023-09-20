@@ -382,7 +382,12 @@ def chess_puzzle_test(puzzle_row, agent, continue_moves = False, iterations_logs
     """
 
     logs = pd.DataFrame()
+    rd_squence = rd.sample(range(0, 2**32), runs)
     for run in range(runs):
+
+        #Set random seed
+        rd.seed(rd_squence[run])
+        np.random.seed(rd_squence[run])
 
         #Setup state
         chess_state = chess_64.GameState()
@@ -394,22 +399,26 @@ def chess_puzzle_test(puzzle_row, agent, continue_moves = False, iterations_logs
         first_action_solution = None
 
         #The agent may play as white or black
+        kickstart_mcts_agent(agent, chess_state)
         agent_player_index = chess_state.player_turn
         player_turn = chess_state.player_turn
-
-        #Setup agent
-        kickstart_mcts_agent(agent, chess_state)
 
         #Loop through the puzzle moves
         for move_idx, move in enumerate(remaining_moves):
             move = chess_state.board.parse_uci(move)
+            print("On move " + str(move_idx) + "_" + str(move) + " of " + str(len(remaining_moves)) + " of puzzle " + str(puzzle_row["PuzzleId"]) + " of run " + str(run) + " of " + str(runs-1))
             if move_idx == 0: first_action_solution = str(move)
 
             #If it is the agent's turn, execute the action chosen by the agent
             if player_turn == agent_player_index:
 
+                #Setup agent
+                kickstart_mcts_agent(agent, chess_state)
+
                 #chosen_action = agent.choose_action(chess_state)
                 total_iterations = 0
+                full_puzzle_expanded = False
+                moves_from_solution_expanded = 0
                 while total_iterations < agent.max_iterations:
                     for i in range(iterations_logs_step):
                         agent.iteration()
@@ -423,10 +432,68 @@ def chess_puzzle_test(puzzle_row, agent, continue_moves = False, iterations_logs
                     #Collect logs
                     move_data = {}
                     move_data["exp_run"] = [run]
+                    move_data["run_seed"] = [rd_squence[run]]
                     move_data["puzzle_move_index"] = [move_idx]
                     move_data["iterations_executed"] = [total_iterations]
                     move_data["current_chosen_move"] = [str(chosen_action.move)]
+                    move_data["would_return_correct_move"] = [str(chosen_action.move) == str(move)]
                     move_data["expected_move"] = [str(move)]
+
+                    solution_action = chess_64.Action(move, player_turn=agent_player_index) #to get the dict key as used in the root_node
+                    solution_expanded = True
+                    if agent.root_node.can_be_expanded():
+                        if not solution_action in list(agent.root_node.children.keys()):
+                            solution_expanded = False
+                    if solution_expanded:
+                        move_data["solution_avg_reward"] = agent.root_node.children[solution_action].average_reward()
+                        move_data["solution_visits"] = agent.root_node.children[solution_action].visits
+                        move_data["solution_can_be_expanded"] = agent.root_node.children[solution_action].can_be_expanded()
+                    else:
+                        move_data["solution_avg_reward"] = None
+                        move_data["solution_visits"] = None
+                        move_data["solution_can_be_expanded"] = None
+
+                    #Find children nodes with the highest average rewards and visits
+                    children_nodes = [c for c in list(agent.root_node.children.values()) if c.edge_action != solution_action]
+                    children_nodes.sort(key=lambda x: x.average_reward(), reverse=True)
+                    move_data["nonsolution_highest_reward_avg_reward"] = children_nodes[0].average_reward()
+                    move_data["nonsolution_highest_reward_visits"] = children_nodes[0].visits
+                    move_data["nonsolution_highest_reward_move"] = str(children_nodes[0].edge_action)
+                    move_data["solution_is_max_avg_reward"] = str(children_nodes[0].edge_action) == str(chosen_action.move)
+                    children_nodes.sort(key=lambda x: x.visits, reverse=True)
+                    move_data["nonsolution_most_visited_avg_reward"] = children_nodes[0].average_reward()
+                    move_data["nonsolution_most_visited_visits"] = children_nodes[0].visits
+                    move_data["nonsolution_most_visits_move"] = str(children_nodes[0].edge_action)
+                    move_data["solution_is_max_visits"] = str(children_nodes[0].edge_action) == str(chosen_action.move)
+
+                    move_data["nonsolutions_avg_avg_reward"] = st.mean([c.average_reward() for c in children_nodes])
+                    move_data["nonsolutions_avg_stddev_reward"] = st.stdev([c.average_reward() for c in children_nodes])
+                    move_data["nonsolutions_avg_visits"] = st.mean([c.visits for c in children_nodes])
+
+                    #See if the solution was expanded at any point
+                    if not full_puzzle_expanded:
+                        moves_from_solution_expanded = 0
+                        if solution_expanded:
+                            i_turn = 1 - agent_player_index
+                            current_node = agent.root_node.children[solution_action]
+                            full_puzzle_expanded = True
+                            moves_from_solution_expanded = 1
+                            for i_move in remaining_moves[move_idx+1:]:
+                                imove_action = chess_64.Action(i_move, player_turn=i_turn)
+                                if imove_action in list(agent.root_node.children.keys()):
+                                    current_node = current_node.children[imove_action]
+                                else:
+                                    full_puzzle_expanded = False
+                                    break
+                                i_turn = 1 - i_turn
+                                moves_from_solution_expanded += 1
+                    else:
+                        moves_from_solution_expanded = len(remaining_moves) - move_idx - 1
+                    move_data["full_puzzle_expanded"] = full_puzzle_expanded
+                    move_data["moves_from_solution_expanded"] = moves_from_solution_expanded
+                    move_data["moves_from_solution_expanded_max"] = len(remaining_moves) - move_idx - 1
+
+
                     move_df = pd.DataFrame(move_data)
                     move_logs = pd.concat([move_df, agent.choose_action_logs], axis = 1)
                     move_logs.set_index(["exp_run", "puzzle_move_index", "iterations_executed"], inplace=True, append = True, drop = False)
@@ -463,30 +530,78 @@ def chess_puzzle_test(puzzle_row, agent, continue_moves = False, iterations_logs
     experiment_logs["expected_move"] = [str(move)]
     correct_by_run = 0
     iteration_as_last_choice = []
+    solution_rewards = []
+    solution_visits = []
+    best_nonsolution_rewards = []
+    best_nonsolution_visits = []
+    most_visited_nonsolution_rewards = []
+    most_visited_nonsolution_visits = []
+    avg_nonsolution_rewards = []
+    avg_nonsolution_visits = []
+    nonsolution_mostvisited_moves = []
+    nonsolution_highest_reward_moves = []
+    full_puzzle_expanded_list = []
+    fm_calls_list = []
     for run in range(runs):
         run_logs = logs[logs["exp_run"]==run]
         #print("Initial_run_logs_len", str(len(run_logs)))
         final_row = run_logs.iloc[-1]
+
+        if final_row["solution_avg_reward"] is not None:
+            solution_rewards = solution_rewards + [final_row["solution_avg_reward"]]
+            solution_visits = solution_visits + [final_row["solution_visits"]]
+        best_nonsolution_rewards = best_nonsolution_rewards + [final_row["nonsolution_highest_reward_avg_reward"]]
+        best_nonsolution_visits = best_nonsolution_visits + [final_row["nonsolution_highest_reward_visits"]]
+        most_visited_nonsolution_rewards = most_visited_nonsolution_rewards + [final_row["nonsolution_most_visited_avg_reward"]]
+        most_visited_nonsolution_visits = most_visited_nonsolution_visits + [final_row["nonsolution_most_visited_visits"]]
+        avg_nonsolution_rewards = avg_nonsolution_rewards + [final_row["nonsolutions_avg_avg_reward"]]
+        avg_nonsolution_visits = avg_nonsolution_visits + [final_row["nonsolutions_avg_visits"]]
+        nonsolution_mostvisited_moves = nonsolution_mostvisited_moves + [final_row["nonsolution_most_visits_move"]]
+        nonsolution_highest_reward_moves = nonsolution_highest_reward_moves + [final_row["nonsolution_highest_reward_move"]]
+        full_puzzle_expanded_list = full_puzzle_expanded_list + [final_row["full_puzzle_expanded"]]
+        fm_calls_list = fm_calls_list + [final_row["forward_model_calls"]]
+
+        #if solved
         if final_row["current_chosen_move"] == first_action_solution:
             correct_by_run += 1
-
             #Find the last iteration where the agent chose the correct action without changing it again - Not working yet
             correct_run_logs = run_logs[run_logs["current_chosen_move"]==first_action_solution]
             last_unchanged_iteration = correct_run_logs["iterations_executed"].max()
-            #print("correct_run_logs_len",str(len(correct_run_logs)), "run_logs_len", str(len(run_logs)))
             for i in reversed(range(len(correct_run_logs))[1:]):
                 if abs(correct_run_logs.iloc[i]["iterations_executed"] - correct_run_logs.iloc[i-1]["iterations_executed"]) == iterations_logs_step:
-                    #print("In update at", i, " and i-1 ", i-1, " with ", correct_run_logs.iloc[i]["iterations_executed"], " and ", correct_run_logs.iloc[i-1]["iterations_executed"])
                     last_unchanged_iteration = correct_run_logs.iloc[i-1]["iterations_executed"]
                 else: 
-                    #print("Broken at", i, " and i-1 ", i-1, " with ", correct_run_logs.iloc[i]["iterations_executed"], " and ", correct_run_logs.iloc[i-1]["iterations_executed"])
                     break
             iteration_as_last_choice.append(last_unchanged_iteration)
+
     if len(iteration_as_last_choice) > 0:
-        experiment_logs["iteration_solution_unchanged"] = st.mean(iteration_as_last_choice)
-    else:
-        experiment_logs["iteration_solution_unchanged"] = np.nan #when solution found, when was it last the best action unchanged?
+        experiment_logs["iteration_solution_unchanged_when_solved_avg"] = st.mean(iteration_as_last_choice)
+        if len(iteration_as_last_choice) > 1:
+            experiment_logs["iteration_solution_unchanged_when_solved_stdev"] = st.stdev(iteration_as_last_choice)
+        
+
     experiment_logs["solved_ratio"] = [correct_by_run/runs]
+    experiment_logs["solution_avg_reward"] = [st.mean(solution_rewards)]
+    experiment_logs["solution_avg_reward_stdev"] = [st.stdev(solution_rewards)] if len(solution_rewards) > 1 else [np.nan]
+    experiment_logs["solution_visits"] = [st.mean(solution_visits)]
+    experiment_logs["solution_visits_stdev"] = [st.stdev(solution_visits)] if len(solution_visits) > 1 else [np.nan]
+    experiment_logs["nonsolution_highest_reward_avg_reward"] = [st.mean(best_nonsolution_rewards)]
+    experiment_logs["nonsolution_highest_reward_avg_reward_stdev"] = [st.stdev(best_nonsolution_rewards)] if len(best_nonsolution_rewards) > 1 else [np.nan]
+    experiment_logs["nonsolution_highest_reward_visits"] = [st.mean(best_nonsolution_visits)]
+    experiment_logs["nonsolution_highest_reward_visits_stdev"] = [st.stdev(best_nonsolution_visits)] if len(best_nonsolution_visits) > 1 else [np.nan]
+    experiment_logs["nonsolution_most_visited_avg_reward"] = [st.mean(most_visited_nonsolution_rewards)]
+    experiment_logs["nonsolution_most_visited_avg_reward_stdev"] = [st.stdev(most_visited_nonsolution_rewards)] if len(most_visited_nonsolution_rewards) > 1 else [np.nan]
+    experiment_logs["nonsolution_most_visited_visits"] = [st.mean(most_visited_nonsolution_visits)]
+    experiment_logs["nonsolution_most_visited_visits_stdev"] = [st.stdev(most_visited_nonsolution_visits)] if len(most_visited_nonsolution_visits) > 1 else [np.nan]
+    experiment_logs["nonsolutions_avg_avg_reward"] = [st.mean(avg_nonsolution_rewards)]
+    experiment_logs["nonsolutions_avg_stdev_reward"] = [st.stdev(avg_nonsolution_rewards)] if len(avg_nonsolution_rewards) > 1 else [np.nan]
+    experiment_logs["nonsolutions_avg_visits"] = [st.mean(avg_nonsolution_visits)]
+    #find the most common nonsolution_most_visits_move
+    experiment_logs["nonsolution_most_visits_move"] = [st.mode(nonsolution_mostvisited_moves)]
+    experiment_logs["nonsolution_highest_reward_move"] = [st.mode(nonsolution_highest_reward_moves)]
+    experiment_logs["full_puzzle_expanded"] = [st.mean([1 if x else 0 for x in full_puzzle_expanded_list])]
+    experiment_logs["fm_calls"] = [st.mean(fm_calls_list)]
+    experiment_logs["fm_calls_stdev"] = [st.stdev(fm_calls_list)] if len(fm_calls_list) > 1 else [np.nan]
     
     #Puzzle was solved
     return logs, experiment_logs

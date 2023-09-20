@@ -6,13 +6,15 @@ import chess
 
 class Action():
 
-    def __init__(self, move, player_turn):
+    def __init__(self, move, player_turn, white_player_name = "White:", black_player_name = "Black:"):
         self.move = move
         self.player_turn = player_turn
+        self.white_player_name = white_player_name
+        self.black_player_name = black_player_name
 
     def __str__(self):
-        pt_str = "White" if self.player_turn == 0 else "Black"
-        return  pt_str + ":" + str(self.move)
+        pt_str = self.white_player_name if self.player_turn == 0 else self.black_player_name
+        return  pt_str + str(self.move)
     
     def __eq__(self, other):
         return str(self.move) == str(other.move) and self.player_turn == other.player_turn

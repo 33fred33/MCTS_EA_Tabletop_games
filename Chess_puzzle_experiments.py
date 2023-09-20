@@ -1,3 +1,5 @@
+#Chess experiment
+
 import cProfile
 import os
 import statistics as st
@@ -30,10 +32,11 @@ import matplotlib.pyplot as plt
 #Chess puzzle experiment
 
 agent_rollouts = 1
-max_iterations = 5000
+max_iterations = 10000
 iterations_logs_step = 50
 random_seed = 1
-experiment_path = os.path.join("Outputs", "Chess_puzzles_results_chosen")
+runs = 10
+experiment_path = os.path.join("Outputs", "Chosen_puzzles")
 
 #set random seed
 rd.seed(random_seed)
@@ -47,18 +50,19 @@ mcts_agent = mcts.MCTS_Player(max_iterations = max_iterations, rollouts=agent_ro
 
 #dataset
 #lichess_db = pd.read_csv("Datasets/lichess_1000_most_played.csv")
-lichess_db = pd.read_csv("Datasets/detailed_processed_lichess_db_puzzle.csv")
+lichess_db = pd.read_csv("Datasets/chosen_processed_lichess_db_puzzle.csv")
 
 for puzzle_idx, puzzle_row in lichess_db.iterrows():
-    game_state = chess_64.GameState()
-    try:
-        game_state.set_puzzle_lichess_db(puzzle_row)
-    except:
-        continue
+    #if puzzle_idx < 2: #####################################################do first 2 puzzles (test)
+        game_state = chess_64.GameState()
+        try:
+            game_state.set_puzzle_lichess_db(puzzle_row)
+        except:
+            continue
 
-    results, parameters = eu.chess_puzzle_test(puzzle_row=puzzle_row, agent=mcts_agent, iterations_logs_step=iterations_logs_step)
-    lm.dump_data(results, file_path= os.path.join(experiment_path, "Puzzle_"+ str(puzzle_idx)), file_name="results_every_"+ str(iterations_logs_step) +".csv")
-    lm.dump_data(parameters, file_path= os.path.join(experiment_path, "Puzzle_"+ str(puzzle_idx)), file_name="experiment_data.csv")
+        results, parameters = eu.chess_puzzle_test(puzzle_row=puzzle_row, agent=mcts_agent, iterations_logs_step=iterations_logs_step, runs = runs)
+        lm.dump_data(results, file_path= os.path.join(experiment_path, "Puzzle_"+ str(puzzle_idx)), file_name="results_every_"+ str(iterations_logs_step) +".csv")
+        lm.dump_data(parameters, file_path= os.path.join(experiment_path, "Puzzle_"+ str(puzzle_idx)), file_name="experiment_data.csv")
 
 
 
@@ -111,7 +115,7 @@ while running:
     result_logs = pd.concat([result_logs, final_row_df], axis=1)
 
     #Append data to collective results
-    collective_results = pd.concat([collective_results, result_logs], axis=0, ignore_index=True)
+    collective_results = pd.concat([collective_results, result_logs], axis=0)
     
     #End of loop routine
     puzzle_idx += 1
