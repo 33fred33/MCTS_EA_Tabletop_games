@@ -289,19 +289,19 @@ def mcts_decision_analysis(game_state, mcts_player, logs_path, runs = 1, random_
     #Update global logs
     global_data = {
         "avg_eval_of_max_reward_leaf_node" : st.mean(logs_by_run["eval_of_max_reward_leaf_node"]),
-        "std_eval_of_max_reward_leaf_node" : st.stdev(logs_by_run["eval_of_max_reward_leaf_node"]),
+        "std_eval_of_max_reward_leaf_node" : st.stdev(logs_by_run["eval_of_max_reward_leaf_node"]) if len(logs_by_run) > 1 else np.nan,
         "avg_eval_of_max_visits_leaf_node" : st.mean(logs_by_run["eval_of_max_visits_leaf_node"]),
-        "std_eval_of_max_visits_leaf_node" : st.stdev(logs_by_run["eval_of_max_visits_leaf_node"]),
+        "std_eval_of_max_visits_leaf_node" : st.stdev(logs_by_run["eval_of_max_visits_leaf_node"]) if len(logs_by_run) > 1 else np.nan,
         "avg_terminals_count" : st.mean(logs_by_run["terminals_count"]),
-        "std_terminals_count" : st.stdev(logs_by_run["terminals_count"]),
+        "std_terminals_count" : st.stdev(logs_by_run["terminals_count"]) if len(logs_by_run) > 1 else np.nan,
         "avg_nodes_by_iteration" : st.mean(logs_by_run["nodes_by_iteration"]),
-        "std_nodes_by_iteration" : st.stdev(logs_by_run["nodes_by_iteration"]),
+        "std_nodes_by_iteration" : st.stdev(logs_by_run["nodes_by_iteration"]) if len(logs_by_run) > 1 else np.nan,
         "avg_forward_model_calls" : st.mean(logs_by_run["forward_model_calls"]),
-        "std_forward_model_calls" : st.stdev(logs_by_run["forward_model_calls"]),
+        "std_forward_model_calls" : st.stdev(logs_by_run["forward_model_calls"]) if len(logs_by_run) > 1 else np.nan,
         "avg_time" : st.mean(logs_by_run["current_time"]),
-        "std_time" : st.stdev(logs_by_run["current_time"]),
+        "std_time" : st.stdev(logs_by_run["current_time"]) if len(logs_by_run) > 1 else np.nan,
         "avg_root_avg_reward": st.mean(logs_by_run["avg_reward"]),
-        "std_root_avg_reward": st.stdev(logs_by_run["avg_reward"]),
+        "std_root_avg_reward": st.stdev(logs_by_run["avg_reward"]) if len(logs_by_run) > 1 else np.nan,
         "random_seed": random_seed,
         "runs": runs,
     }
@@ -467,9 +467,10 @@ def chess_puzzle_test(puzzle_row, agent, continue_moves = False, iterations_logs
                     move_data["solution_is_max_visits"] = str(children_nodes[0].edge_action) == str(chosen_action.move)
 
                     move_data["nonsolutions_avg_avg_reward"] = st.mean([c.average_reward() for c in children_nodes])
-                    move_data["nonsolutions_avg_stddev_reward"] = st.stdev([c.average_reward() for c in children_nodes])
+                    move_data["nonsolutions_avg_stddev_reward"] = st.stdev([c.average_reward() for c in children_nodes]) if len(children_nodes) > 1 else np.nan
                     move_data["nonsolutions_avg_visits"] = st.mean([c.visits for c in children_nodes])
-
+                    move_data["nonsolution_rewards_list"] = str([c.average_reward() for c in children_nodes])
+                    move_data["nonsolution_visits_list"] = str([c.visits for c in children_nodes])
                     #See if the solution was expanded at any point
                     if not full_puzzle_expanded:
                         moves_from_solution_expanded = 0
