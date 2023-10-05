@@ -19,7 +19,7 @@ SIDE_COMPARISON_DICT={
      
 class CarcassonneState:
     
-    def __init__(self, name = "Carcassonne", no_farms = False, reward_type = "Score_difference", losing_reward = -1, draw_reward = 0, winning_reward = 1, initial_tile_quantities = [1,3,1,1,2,3,2,2,2,3,1,3,2,5,3,2,4,3,3,4,4,9,8,1], initial_meeples = [7,7]):
+    def __init__(self, name = "Carcassonne", no_farms = False, reward_type = "Score_difference", losing_reward = -1, draw_reward = 0, winning_reward = 1, initial_tile_quantities = [1,3,1,1,2,3,2,2,2,3,1,3,2,5,3,2,4,3,3,4,4,9,8,1], initial_meeples = [7,7], set_tile_sequence = False, set_tile_sequence_seed = None):
 
         assert len(initial_tile_quantities) == 24, "The initial tile quantities must be a list of 24 ints"
 
@@ -64,7 +64,7 @@ class CarcassonneState:
         
     def set_initial_state(self):
 
-        self.Meeples = [7,7]
+        self.Meeples = self.initial_meeples
         self.winner = None
         self.result = None
         self.reward = [None, None]

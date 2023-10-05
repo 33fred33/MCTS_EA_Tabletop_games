@@ -26,6 +26,7 @@ class OSLA_Wins(BaseAgent):
         if probing_size < len(state.available_actions):
             probing_limited = True
             actions_to_test = rd.sample(state.available_actions, probing_size)
+            alternative_action = actions_to_test.pop()
         else: 
             probing_limited = False
             actions_to_test = state.available_actions
@@ -35,7 +36,7 @@ class OSLA_Wins(BaseAgent):
                 state.make_action(action)
                 self.current_fm += 1
                 if state.is_terminal:
-                    if state.winner == self.player:
+                    if state.winner is not None:
                         state.undo_move()
                         return action
                 state.undo_move()
@@ -44,10 +45,10 @@ class OSLA_Wins(BaseAgent):
                 duplicate_state.make_action(action)
                 self.current_fm += 1
                 if duplicate_state.is_terminal:
-                    if duplicate_state.winner == self.player:
+                    if duplicate_state.winner is not None:
                         return action
         if probing_limited:
-            return actions_to_test[-1]
+            return alternative_action
         return rd.choice(state.available_actions)
 
     def agent_data(self):

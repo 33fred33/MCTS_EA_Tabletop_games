@@ -460,11 +460,23 @@ def chess_puzzle_test(puzzle_row, agent, continue_moves = False, iterations_logs
                     move_data["nonsolution_highest_reward_visits"] = children_nodes[0].visits
                     move_data["nonsolution_highest_reward_move"] = str(children_nodes[0].edge_action)
                     move_data["solution_is_max_avg_reward"] = str(children_nodes[0].edge_action) == str(chosen_action.move)
+                    #find reward ranking of the solution
+                    solution_rank = 1
+                    for c in children_nodes:
+                        if c.edge_action == solution_action: break
+                        solution_rank += 1
+                    move_data["solution_reward_rank"] = solution_rank
+
                     children_nodes.sort(key=lambda x: x.visits, reverse=True)
                     move_data["nonsolution_most_visited_avg_reward"] = children_nodes[0].average_reward()
                     move_data["nonsolution_most_visited_visits"] = children_nodes[0].visits
                     move_data["nonsolution_most_visits_move"] = str(children_nodes[0].edge_action)
                     move_data["solution_is_max_visits"] = str(children_nodes[0].edge_action) == str(chosen_action.move)
+                    solution_rank = 1
+                    for c in children_nodes:
+                        if c.edge_action == solution_action: break
+                        solution_rank += 1
+                    move_data["solution_visits_rank"] = solution_rank
 
                     move_data["nonsolutions_avg_avg_reward"] = st.mean([c.average_reward() for c in children_nodes])
                     move_data["nonsolutions_avg_stddev_reward"] = st.stdev([c.average_reward() for c in children_nodes]) if len(children_nodes) > 1 else np.nan
@@ -537,6 +549,8 @@ def chess_puzzle_test(puzzle_row, agent, continue_moves = False, iterations_logs
     best_nonsolution_visits = []
     most_visited_nonsolution_rewards = []
     most_visited_nonsolution_visits = []
+    avg_solution_reward_rank = []
+    avg_solution_visits_rank = []
     avg_nonsolution_rewards = []
     avg_nonsolution_visits = []
     nonsolution_mostvisited_moves = []
@@ -555,6 +569,8 @@ def chess_puzzle_test(puzzle_row, agent, continue_moves = False, iterations_logs
         best_nonsolution_visits = best_nonsolution_visits + [final_row["nonsolution_highest_reward_visits"]]
         most_visited_nonsolution_rewards = most_visited_nonsolution_rewards + [final_row["nonsolution_most_visited_avg_reward"]]
         most_visited_nonsolution_visits = most_visited_nonsolution_visits + [final_row["nonsolution_most_visited_visits"]]
+        avg_solution_reward_rank = avg_solution_reward_rank + [final_row["solution_reward_rank"]]
+        avg_solution_visits_rank = avg_solution_visits_rank + [final_row["solution_visits_rank"]]
         avg_nonsolution_rewards = avg_nonsolution_rewards + [final_row["nonsolutions_avg_avg_reward"]]
         avg_nonsolution_visits = avg_nonsolution_visits + [final_row["nonsolutions_avg_visits"]]
         nonsolution_mostvisited_moves = nonsolution_mostvisited_moves + [final_row["nonsolution_most_visits_move"]]
@@ -594,9 +610,14 @@ def chess_puzzle_test(puzzle_row, agent, continue_moves = False, iterations_logs
     experiment_logs["nonsolution_most_visited_avg_reward_stdev"] = [st.stdev(most_visited_nonsolution_rewards)] if len(most_visited_nonsolution_rewards) > 1 else [np.nan]
     experiment_logs["nonsolution_most_visited_visits"] = [st.mean(most_visited_nonsolution_visits)]
     experiment_logs["nonsolution_most_visited_visits_stdev"] = [st.stdev(most_visited_nonsolution_visits)] if len(most_visited_nonsolution_visits) > 1 else [np.nan]
+    experiment_logs["solution_avg_reward_rank"] = [st.mean(avg_solution_reward_rank)]
+    experiment_logs["solution_avg_reward_rank_stdev"] = [st.stdev(avg_solution_reward_rank)] if len(avg_solution_reward_rank) > 1 else [np.nan]
+    experiment_logs["solution_visits_rank"] = [st.mean(avg_solution_visits_rank)]
+    experiment_logs["solution_visits_rank_stdev"] = [st.stdev(avg_solution_visits_rank)] if len(avg_solution_visits_rank) > 1 else [np.nan]
     experiment_logs["nonsolutions_avg_avg_reward"] = [st.mean(avg_nonsolution_rewards)]
     experiment_logs["nonsolutions_avg_stdev_reward"] = [st.stdev(avg_nonsolution_rewards)] if len(avg_nonsolution_rewards) > 1 else [np.nan]
     experiment_logs["nonsolutions_avg_visits"] = [st.mean(avg_nonsolution_visits)]
+
     #find the most common nonsolution_most_visits_move
     experiment_logs["nonsolution_most_visits_move"] = [st.mode(nonsolution_mostvisited_moves)]
     experiment_logs["nonsolution_highest_reward_move"] = [st.mode(nonsolution_highest_reward_moves)]
@@ -709,6 +730,32 @@ def extend_lichess_db(file_path, file_name):
     lichess_db["Required_moves"] = required_moves
     lichess_db["Player_to_move"] = player_to_move
     return lichess_db
+
+def random_rollout(game_state, default_agent):
+    """
+    game_state = game state to rollout
+    default_agent = agent to rollout with
+    """
+    logs_dict = {}
+    list_action_count = []
+    list_actions = []
+    rollout_state = game_state.duplicate()
+    start_time = time.time()
+    while not rollout_state.is_terminal:
+        action = default_agent.choose_action(rollout_state)
+        list_actions.append(str(action))
+        list_action_count.append(len(rollout_state.available_actions))
+        rollout_state.make_action(action)
+    logs_dict["time"] = time.time() - start_time
+    logs_dict["turns"] = rollout_state.turn - game_state.turn
+    logs_dict["winner"] = rollout_state.winner
+    logs_dict["reward"] = rollout_state.reward[game_state.player_turn]
+    logs_dict["actions"] = list_actions
+    logs_dict["action_count"] = list_action_count
+    logs_dict["average_action_count"] = np.mean(list_action_count)
+    logs_dict["agent_name"] = default_agent.name
+    logs_dict["final_state"] = rollout_state
+    return logs_dict
 
 #Visualisation
 def fo_tree_histogram(data_list, function, title, divisions, n_buckets = 100, subplot_titles=None, max_x_location = None, y_ref_value = None):

@@ -30,9 +30,12 @@ class GameState(base_games.BaseGameState):
     reward : List[float]
     def __init__(self, losing_reward=-1,
                  draw_reward=0,
-                 winning_reward=1, name=None) -> None:
-        if name is None: self.name = "Chess"
+                 winning_reward=1, name=None, breakthrough = False) -> None:
+        if name is None: 
+            if breakthrough: self.name = "Breakthrough"
+            else: self.name = "Chess"
         else: self.name = name
+        self.breakthrough = breakthrough
         self.losing_reward = losing_reward
         self.draw_reward = draw_reward
         self.winning_reward = winning_reward
@@ -83,25 +86,31 @@ class GameState(base_games.BaseGameState):
         assert action.player_turn == self.player_turn, "Wrong player turn"
         self.board.push(action.move)
         #self.available_actions = [Action(move) for move in list(self.board.legal_moves)]
-        if self.board.is_game_over():
-            if self.board.outcome().winner is None:
-                self._game_end(None)
-            elif self.board.outcome().winner: self._game_end(0)
-            else: self._game_end(1)
+
+        if self.breakthrough:
+            if action.move.promotion is not None:
+                self.is_terminal = True
+                self.winner = self.player_turn
+                self.reward[self.winner] = self.winning_reward
+                self.reward[1-self.winner] = self.losing_reward
+                return
+            
+        outcome = self.board.outcome()
+        if outcome is not None:
+            self.is_terminal = True
+            if outcome.winner is None:
+                self.winner = None
+                self.reward = [self.draw_reward,self.draw_reward]
+            else:
+                if outcome.winner: self.winner = 0
+                else: self.winner = 1
+                self.reward[self.winner] = self.winning_reward
+                self.reward[1-self.winner] = self.losing_reward
             
         else:
             self.player_turn = 1 - self.player_turn
             self.turn += 1
             self.available_actions = [Action(move, player_turn=self.player_turn) for move in list(self.board.legal_moves)]
-
-    def _game_end(self, winner):
-        self.is_terminal = True
-        self.winner = winner
-        if winner is None:
-            self.reward = [self.draw_reward,self.draw_reward]
-        else:
-            self.reward[winner] = self.winning_reward
-            self.reward[1-winner] = self.losing_reward
 
     def view_game_state(self):
         return print(self.board)
@@ -118,6 +127,7 @@ class GameState(base_games.BaseGameState):
         the_duplicate.player_turn = self.player_turn
         the_duplicate.available_actions = [Action(move, player_turn=self.player_turn) for move in list(self.board.legal_moves)]
         the_duplicate.board = self.board.copy()
+        the_duplicate.breakthrough = self.breakthrough
         return the_duplicate
 
     def feature_vector(self):
@@ -134,7 +144,8 @@ class GameState(base_games.BaseGameState):
         data = {"losing_reward":self.losing_reward,
                 "draw_reward":self.draw_reward,
                 "winning_reward":self.winning_reward,
-                "name":self.name}
+                "name":self.name,
+                "breakthrough":self.breakthrough}
         return pd.DataFrame(data, index=[0])
     
     def logs_data(self):
