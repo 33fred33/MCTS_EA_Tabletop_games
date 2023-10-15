@@ -63,10 +63,15 @@ class GamePlayer():
             #Update logs
             if logs:
                 action_log = self.players[gs.player_turn].choose_action_logs #Assumes this log is single row
-                action_log["game_index"] = self.games_count
-                action_log["selection_time"] = selection_time
-                action_log["returned_action"] = str(action)
-                action_log["pg_player"] = str(self.players[gs.player_turn])
+                action_log["game_index"] = [self.games_count]
+                action_log["selection_time"] = [selection_time]
+                action_log["returned_action"] = [str(action)]
+                action_log["pg_player"] = [str(self.players[gs.player_turn])]
+                action_log["pg_player_index"] = [gs.player_turn]
+                action_log["pg_player_name"] = [self.players[gs.player_turn].name]
+                action_log["pg_game_turn"] = [gs.turn]
+                #lm.dump_data(action_log, file_path= os.path.join("Outputs", "test"), file_name="action_log.csv")
+                #lm.dump_data(action_logs, file_path= os.path.join("Outputs", "test"), file_name="action_logs.csv")
                 action_logs = pd.concat([action_logs, action_log], ignore_index=True)
                 game_logs = pd.concat([game_logs, gs.logs_data()], ignore_index=True)
 
@@ -118,7 +123,7 @@ class GamePlayer():
     def _update_logs_by_action(self, logs):
         self.logs_by_action = pd.concat([self.logs_by_action, logs], ignore_index=True)
 
-    def play_games(self, n_games, random_seed = None, logs = True, logs_dispatch_after = 10, logs_path = None) -> None:
+    def play_games(self, n_games, random_seed = None, logs = True, logs_dispatch_after = 1, logs_path = None) -> None:
         "Plays n_games games"
         if random_seed is not None: 
             rd.seed(random_seed)
@@ -139,6 +144,7 @@ class GamePlayer():
     def save_data(self, file_path):
         "Saves logs to file_path"
         lm.dump_data(self.logs_by_game, file_path= file_path, file_name="logs_by_game.csv")
+        lm.dump_data(self.game_state.game_definition_data(), file_path= file_path, file_name="game_definition_data.csv")
         lm.dump_data(self.logs_by_action, file_path= file_path, file_name="logs_by_action.csv")
         lm.dump_data(self.results(), file_path= file_path, file_name="results.csv")
         for i,p in enumerate(self.players):
@@ -163,7 +169,7 @@ class GamePlayer():
         return return_string
 
 
-def play_match(agents, game_state, games, file_path = None, random_seed = None, logs = True, logs_dispatch_after = 10):
+def play_match(agents, game_state, games, file_path = None, random_seed = None, logs = True, logs_dispatch_after = 1):
     """Plays a match between two agents
     agents: list of agents
     game_state: game state

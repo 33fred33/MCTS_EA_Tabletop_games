@@ -55,7 +55,7 @@ class nextTile:
     
     def __init__(self, Carcassonne, displayScreen, RunInit = True):
         self.Carcassonne = Carcassonne
-        self.nextTileIndex = self.Carcassonne.nextTileIndex()
+        self.nextTileIndex = self.Carcassonne.next_tile_index
         
         if self.nextTileIndex == -1: #no more tiles left
             RunInit = False

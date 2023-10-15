@@ -90,6 +90,17 @@ class Node():
             my_nodes = my_nodes + self.subtree_nodes(child)
         return my_nodes
 
+    def leaf_node_depths(self, node=None, depth=0):
+        if node is None:
+            node = self
+        if len(node.children) == 0:
+            return [depth]
+        else:
+            depths = []
+            for child in node.children.values():
+                depths = depths + self.leaf_node_depths(child, depth+1)
+            return depths
+
     def get_next_parent_decision_node(self):
         temp_node = self
         while temp_node.parent is not None:
@@ -200,7 +211,7 @@ class MCTS_Player(BaseAgent):
             self.iteration(self.root_node)
 
             #Update criteria
-            self.current_iterations = self.current_iterations + 1
+            #self.current_iterations = self.current_iterations + 1
             self.current_time = time.time() - start_time
 
             #Check if iterations are still calling fm
@@ -452,8 +463,8 @@ class MCTS_Player(BaseAgent):
         return pd.DataFrame(data_dict, index=[0])
 
     def _update_choose_action_logs(self):
+        lnd = self.root_node.leaf_node_depths()
         data_dict = {
-            "state": str(self.root_node.state),
             "forward_model_calls": self.current_fm,
             "current_time": self.current_time,
             "current_iterations": self.current_iterations,
@@ -461,6 +472,10 @@ class MCTS_Player(BaseAgent):
             "root_node_avg_reward": self.root_node.average_reward(),
             "nodes_count": self.nodes_count,
             "playing_as": self.player,
+            "avg_leaf_node_depth": np.mean(lnd),
+            "max_leaf_node_depth": np.max(lnd),
+            "min_leaf_node_depth": np.min(lnd),
+            "std_leaf_node_depth": np.std(lnd),
         }
         for i,c in enumerate(self.root_node.children.values()):
             data_dict["action" + str(i)] = str(c.edge_action)

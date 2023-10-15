@@ -1,0 +1,15 @@
+python Carcassonne_1p.py -r 1 -g 20 -i 5000 -m 1 -c 0.5
+python Carcassonne_1p.py -r 1 -g 20 -i 5000 -m 1 -c 1
+python Carcassonne_1p.py -r 1 -g 20 -i 5000 -m 1 -c 1.4142
+python Carcassonne_1p.py -r 1 -g 20 -i 5000 -m 1 -c 2
+python Carcassonne_1p.py -r 1 -g 20 -i 5000 -m 1 -c 3
+python Carcassonne_1p.py -r 1 -g 20 -i 5000 -m 7 -c 0.5
+python Carcassonne_1p.py -r 1 -g 20 -i 5000 -m 7 -c 1
+python Carcassonne_1p.py -r 1 -g 20 -i 5000 -m 7 -c 1.4142
+python Carcassonne_1p.py -r 1 -g 20 -i 5000 -m 7 -c 2
+python Carcassonne_1p.py -r 1 -g 20 -i 5000 -m 7 -c 3
+python Carcassonne_1p.py -r 1 -g 20 -i 5000 -m 3 -c 3
+python Carcassonne_1p.py -r 1 -g 20 -i 5000 -m 3 -c 3
+python Carcassonne_1p.py -r 1 -g 20 -i 5000 -m 3 -c 3
+python Carcassonne_1p.py -r 1 -g 20 -i 5000 -m 3 -c 3
+python Carcassonne_1p.py -r 1 -g 20 -i 5000 -m 3 -c 3

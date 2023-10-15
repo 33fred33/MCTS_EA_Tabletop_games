@@ -11,6 +11,9 @@ from Agents.random import RandomPlayer
 from Agents.vanilla_mcts import MCTS_Player
 from Agents.siea_mcts import SIEA_MCTS_Player
 from Games.Carcassonne.AvailableMove import AvailableMove
+import datetime
+import Utilities.logs_management as lm
+import pandas as pd
 #from player.MCTS_Player import MCTSPlayer
 #from player.MCTS_RAVE_Player import MCTS_RAVEPlayer
 #from player.MCTS_ES_Player import MCTS_ES_Player
@@ -38,8 +41,8 @@ NumKeys = [pygame.K_KP0, pygame.K_KP1, pygame.K_KP2, pygame.K_KP3, pygame.K_KP4,
 PLAYERS = [
         ("Human", HumanPlayer()),
         ("Random", RandomPlayer()),
-        ("MCTS", MCTS_Player(max_iterations=100)),
-        ("SIEA_MCTS", SIEA_MCTS_Player(max_iterations=100)),
+        ("MCTS", MCTS_Player(max_iterations=5000)),
+        ("SIEA_MCTS", SIEA_MCTS_Player(max_iterations=5000)),
         #("RAVE", MCTS_RAVEPlayer())
         ] 
 
@@ -179,7 +182,8 @@ def PlayGame(p1, p2):
     #Carcassonne = CarcassonneState(p1,p2)
     #Carcassonne = CarcassonneState()
     #Carcassonne = CarcassonneState(initial_tile_quantities=[1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0])
-    Carcassonne = CarcassonneState(initial_tile_quantities=[1 for _ in range(24)])
+    #Carcassonne = CarcassonneState(initial_tile_quantities=[1 for _ in range(24)])
+    Carcassonne = CarcassonneState(initial_tile_quantities=[1 for _ in range(24)], set_tile_sequence=True, set_tile_sequence_seed=1, initial_meeples=[2,2])
     Carcassonne.set_initial_state()
 
     # initialize the 'next tile' onject
@@ -197,6 +201,10 @@ def PlayGame(p1, p2):
     rotation = 0
     newRotation = False
     numberSelected = 0  # default choice is no meeple
+
+    #create game logs
+    game_logs = pd.DataFrame()
+    logs_path = os.path.join("Outputs", "Pygames", "pygame_at_" + str(datetime.datetime.now()))
     
     # main pygame loop
     while not done:
@@ -220,13 +228,22 @@ def PlayGame(p1, p2):
                     
                         # play AI move when space bar is clicked
                         if event.key == pygame.K_SPACE:
+                            player_choosing_action_index = player_index
                             player_index, selectedMove = playMove(NT, players[player_index], Carcassonne, NT.nextTileIndex, player_index, ManualMove = None)
                             NT = nextTile(Carcassonne, DisplayScreen)  # next tile
                             print(f'Scores: {Carcassonne.FeatureScores}')
                             isStartOfTurn = True  # new turn
                             hasSomethingNew = True  # action just happened
                             isStartOfGame = False # if move is made, the game has now started
-                        
+
+                            #manage mcts logs
+                            action_logs_path = os.path.join(logs_path, "Turn" + str(Carcassonne.turn-1) + "_pindex" + str(player_choosing_action_index))
+                            #if mcts, then update logs
+                            if "MCTS" in players[player_choosing_action_index].name:
+                                players[player_choosing_action_index]._update_choose_action_logs()
+                            players[player_choosing_action_index].dump_my_logs(path = action_logs_path)
+                            action_logs = pd.concat([Carcassonne.logs_data(), players[player_choosing_action_index].choose_action_logs], axis=1)
+                            lm.dump_data(action_logs, action_logs_path, "full_action_logs.csv")
                     # check if game is over
                     isGameOver = Carcassonne.is_terminal
                         
