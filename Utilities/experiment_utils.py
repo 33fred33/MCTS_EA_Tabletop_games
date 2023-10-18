@@ -28,6 +28,7 @@ class GamePlayer():
         self.games_count = 0
         self.logs_by_game = pd.DataFrame()
         self.logs_by_action = pd.DataFrame()
+        self.logs_by_iteration = pd.DataFrame()
         self.win_count = {i:0 for i in range(len(players))}
         self.win_count["Draw"] = 0
         
@@ -48,6 +49,7 @@ class GamePlayer():
         #Set logs
         action_logs = pd.DataFrame()
         game_logs = pd.DataFrame()
+        iteration_logs = pd.DataFrame()
         if logs:
             for p in self.players:
                 p.logs = True
@@ -63,17 +65,28 @@ class GamePlayer():
             #Update logs
             if logs:
                 action_log = self.players[gs.player_turn].choose_action_logs #Assumes this log is single row
-                action_log["game_index"] = [self.games_count]
-                action_log["selection_time"] = [selection_time]
-                action_log["returned_action"] = [str(action)]
-                action_log["pg_player"] = [str(self.players[gs.player_turn])]
-                action_log["pg_player_index"] = [gs.player_turn]
-                action_log["pg_player_name"] = [self.players[gs.player_turn].name]
-                action_log["pg_game_turn"] = [gs.turn]
-                #lm.dump_data(action_log, file_path= os.path.join("Outputs", "test"), file_name="action_log.csv")
-                #lm.dump_data(action_logs, file_path= os.path.join("Outputs", "test"), file_name="action_logs.csv")
+                action_log_addon = {}
+                action_log_addon["game_index"] = [self.games_count]
+                action_log_addon["pg_selection_time"] = [selection_time]
+                action_log_addon["pg_returned_action"] = [str(action)]
+                action_log_addon["pg_player"] = [str(self.players[gs.player_turn])]
+                action_log_addon["pg_player_index"] = [gs.player_turn]
+                action_log_addon["pg_player_name"] = [self.players[gs.player_turn].name]
+                action_log_addon["pg_game_turn"] = [gs.turn]
+                action_log_addon_df = pd.DataFrame(action_log_addon)
+                action_log = pd.concat([action_log, action_log_addon_df], axis=1)
                 action_logs = pd.concat([action_logs, action_log], ignore_index=True)
                 game_logs = pd.concat([game_logs, gs.logs_data()], ignore_index=True)
+
+                #check if player has the attribute logs_by_iterations
+                if hasattr(self.players[gs.player_turn], "logs_by_iterations"):
+                    iteration_log = self.players[gs.player_turn].logs_by_iterations
+                    iteration_log_addon = {k:[v for _ in range(len(iteration_log))] for k,v in action_log_addon.items()}
+                    iteration_log_addon_df = pd.DataFrame(iteration_log_addon)
+                    iteration_log = pd.concat([iteration_log, iteration_log_addon_df], axis=1)
+                    iteration_logs = pd.concat([iteration_logs, iteration_log], ignore_index=True)
+
+
 
             #safety check      
             safe_count += 1
@@ -106,8 +119,9 @@ class GamePlayer():
             #Update class logs
             self._update_logs_by_game(final_logs_by_game)
             self._update_logs_by_action(final_logs_by_action)
+            if len(iteration_logs) > 0:
+                self._update_logs_by_iteration(iteration_logs)
             self._update_win_count(gs.winner)
-        
 
         self.games_count += 1
         return gs
@@ -122,6 +136,9 @@ class GamePlayer():
 
     def _update_logs_by_action(self, logs):
         self.logs_by_action = pd.concat([self.logs_by_action, logs], ignore_index=True)
+
+    def _update_logs_by_iteration(self, logs):
+        self.logs_by_iteration = pd.concat([self.logs_by_iteration, logs], ignore_index=True)
 
     def play_games(self, n_games, random_seed = None, logs = True, logs_dispatch_after = 1, logs_path = None) -> None:
         "Plays n_games games"
@@ -149,6 +166,8 @@ class GamePlayer():
         lm.dump_data(self.results(), file_path= file_path, file_name="results.csv")
         for i,p in enumerate(self.players):
             lm.dump_data(p.agent_data(), file_path= file_path, file_name="p" + str(i) + "_data.csv")
+        if len(self.logs_by_iteration) > 0:
+            lm.dump_data(self.logs_by_iteration, file_path= file_path, file_name="logs_by_iteration.csv")
 
     def results(self):
         "Returns a dictionary with the results of the games played"

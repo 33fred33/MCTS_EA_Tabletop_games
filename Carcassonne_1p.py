@@ -52,6 +52,7 @@ parser.add_argument('-m','--meeples', type=int, default=7,
                     help='Carcassonne meeples')
 parser.add_argument('-c','--c', type=float, default=math.sqrt(2),help='MCTS c parameter')
 parser.add_argument('-roll','--rollouts', type=int, default=1,help='MCTS rollouts')
+#parser.add_argument('-p','--multiprocess', type=int, default=0,help='1=multiprocess, 0=not multiprocess')
 
 #Declare parameters
 parser = parser.parse_args()
@@ -81,6 +82,7 @@ np.random.seed(parser.seed)
 players = [mcts.MCTS_Player(max_iterations =parser.iterations,
                                 c=parser.c,
                                 logs=True,
+                                logs_every_iterations = int(parser.iterations/10),
                                 name = "MCTS_c" + str(parser.c),
                                 rollouts=parser.rollouts)]
 
@@ -95,3 +97,8 @@ for game_idx, game_state in enumerate(initial_game_states):
                         logs_path=os.path.join(file_path, "Game_" + str(game_idx+1)))
 
 #gameplayer.save_data(file_path=file_path)
+
+#######Multiprocess version
+
+
+

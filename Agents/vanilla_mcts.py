@@ -177,7 +177,7 @@ class MCTS_Player(BaseAgent):
     root_node : Node
     player : int
 
-    def __init__(self, rollouts=1, c=math.sqrt(2), max_fm=np.inf, max_time=np.inf, max_iterations=np.inf, default_policy = RandomPlayer(), name = "Vanilla_MCTS", logs = False):
+    def __init__(self, rollouts=1, c=math.sqrt(2), max_fm=np.inf, max_time=np.inf, max_iterations=np.inf, default_policy = RandomPlayer(), name = "Vanilla_MCTS", logs = False, logs_every_iterations = None):
         assert max_fm != np.inf or max_time != np.inf or max_iterations != np.inf, "At least one of the stopping criteria must be set"
         self.rollouts = rollouts
         self.c = c
@@ -193,10 +193,12 @@ class MCTS_Player(BaseAgent):
         self.logs = logs
         self.choose_action_logs = pd.DataFrame()
         self.isAIPlayer = True
+        self.logs_every_iterations = logs_every_iterations
 
     def choose_action(self, state):
 
         self.choose_action_logs = pd.DataFrame()
+        self.logs_by_iterations = pd.DataFrame()
         self.nodes_count = 0
         self.root_node = Node(state=state.duplicate(), expansion_index=self.nodes_count)
         self.nodes_count += 1
@@ -208,6 +210,7 @@ class MCTS_Player(BaseAgent):
         start_time = time.time()
 
         while self.current_fm < self.max_fm and self.current_iterations < self.max_iterations and self.current_time < self.max_time:
+            logs_updated = False
             self.iteration(self.root_node)
 
             #Update criteria
@@ -219,6 +222,14 @@ class MCTS_Player(BaseAgent):
                 print("Warning: current_fm >= current_iterations. Fm calls:", self.current_fm, "Its:",self.current_iterations)
                 break
 
+            #Update logs
+            if self.logs:
+                if self.logs_every_iterations is not None:
+                    if self.current_iterations % self.logs_every_iterations == 0:
+                        self._update_choose_action_logs()
+                        self.logs_by_iterations = pd.concat([self.logs_by_iterations, self.choose_action_logs], ignore_index=True)
+                        logs_updated = True
+
         if len(self.root_node.children) > 0:
             to_return = self.recommendation_policy()
         else:
@@ -226,9 +237,9 @@ class MCTS_Player(BaseAgent):
             to_return = rd.choice(self.root_node.state.available_actions)
         
         #Update logs
-        if self.logs:
+        if self.logs and not logs_updated:
             self._update_choose_action_logs()
-            self.choose_action_logs["chosen_action"] = to_return
+            self.choose_action_logs["chosen_action"] = [to_return]
 
         return to_return
 
@@ -464,6 +475,10 @@ class MCTS_Player(BaseAgent):
 
     def _update_choose_action_logs(self):
         lnd = self.root_node.leaf_node_depths()
+        max_visits_node = max(self.root_node.children.values(), key= lambda x: x.visits)
+        max_visits_action = max_visits_node.edge_action
+        max_reward_node = max(self.root_node.children.values(), key= lambda x: x.average_reward())
+        max_reward_action = max_reward_node.edge_action
         data_dict = {
             "forward_model_calls": self.current_fm,
             "current_time": self.current_time,
@@ -476,7 +491,14 @@ class MCTS_Player(BaseAgent):
             "max_leaf_node_depth": np.max(lnd),
             "min_leaf_node_depth": np.min(lnd),
             "std_leaf_node_depth": np.std(lnd),
+            "max_visits_action": str(max_visits_action),
+            "max_visits_node": str(max_visits_node),
+            "max_visits": max_visits_node.visits,
+            "max_reward_action": str(max_reward_action),
+            "max_reward": max_reward_node.average_reward(),
+            "max_reward_node": str(max_reward_node),
         }
+
         for i,c in enumerate(self.root_node.children.values()):
             data_dict["action" + str(i)] = str(c.edge_action)
             data_dict["action" + str(i) + "_is_chance_node"] = c.is_chance_node
@@ -487,11 +509,14 @@ class MCTS_Player(BaseAgent):
         action_df = pd.DataFrame(data_dict, index=[0])
         action_df = pd.concat([action_df, self.agent_data()], axis=1)
         action_df = pd.concat([action_df, self.root_node.node_data()], axis = 1)
-        self.choose_action_logs = pd.concat([self.choose_action_logs, action_df], axis=1)
+        self.choose_action_logs = action_df
+        #self.choose_action_logs = pd.concat([self.choose_action_logs, action_df], axis=1) #maybe needed for fop exps
 
     def dump_my_logs(self, path):
         lm.dump_data(self.agent_data(), path, "agent_data.csv")
         lm.dump_data(self.choose_action_logs, path, "choose_action_logs.csv")
+        if len(self.logs_by_iterations) > 0:
+            lm.dump_data(self.logs_by_iterations, path, "logs_by_iterations.csv")
 
     def __str__(self):
         return self.name
