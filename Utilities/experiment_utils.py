@@ -32,7 +32,7 @@ class GamePlayer():
         self.win_count = {i:0 for i in range(len(players))}
         self.win_count["Draw"] = 0
         
-    def play_game(self, random_seed = None, logs = True):
+    def play_game(self, random_seed = None, logs = True, verbose = True):
         "Plays a game. If logs is true, adds data to the class logs"
 
         gs = self.game_state.duplicate()
@@ -100,6 +100,10 @@ class GamePlayer():
             #Make action
             gs.make_action(action)
 
+            if verbose:
+                print("Player " + str(gs.player_turn) + " chose action " + str(action) + " in " + str(selection_time) + " seconds")
+
+            #if gs.turn > 2: break ####TEMPORARY
         
         if logs:
             #Final logs by action

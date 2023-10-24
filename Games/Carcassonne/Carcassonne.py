@@ -440,14 +440,14 @@ class CarcassonneState:
                 
         # assume tile fits, need to check if tile does not fit
         IsTileFitting = True
-        while True:
-            for i in range(4):
-                TestingTile = self.Board.get(SurroundingSpots[i])
-                if TestingTile is not None:
-                    if TestingTile.Properties[(i+2)%4] != EvaluatedTile.Properties[Sides[i]]:
-                        IsTileFitting = False
-                        break
-            break
+        #while True:
+        for i in range(4):
+            TestingTile = self.Board.get(SurroundingSpots[i])
+            if TestingTile is not None:
+                if TestingTile.Properties[(i+2)%4] != EvaluatedTile.Properties[Sides[i]]:
+                    IsTileFitting = False
+                    break
+        #    break
         return IsTileFitting, SideChange
      
     def movesWithMeeples(self, EvaluatedTile, HasFeature, Openings, 
