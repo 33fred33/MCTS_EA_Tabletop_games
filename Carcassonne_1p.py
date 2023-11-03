@@ -85,10 +85,10 @@ def run_experiment(parser):
 
     
     #Create game states
-    #game_state_seeds = [x for x in range(parser.games)]
-    game_state_seeds = [19,20]
+    game_state_seeds = [x for x in range(parser.games)]
+    #game_state_seeds = [19,20]
     initial_game_states = [carc.CarcassonneState(name = "Carcassonne_full_det_1p",
-                                                #initial_tile_quantities=[1 for _ in range(24)],
+                                                initial_tile_quantities=[1 for _ in range(24)],
                                                 set_tile_sequence= parser.random_events == 0,
                                                 set_tile_sequence_seed=game_seed,
                                                 initial_meeples = [parser.meeples, parser.meeples],
@@ -107,6 +107,13 @@ def run_experiment(parser):
                                     logs_every_iterations = int(parser.iterations/10),
                                     name = "MCTS_c" + str(parser.c),
                                     rollouts=parser.rollouts)]
+    
+    players = [siea_mcts.SIEA_MCTS_Player(max_iterations = parser.iterations, 
+                                          logs = True,
+                                        logs_every_iterations = int(parser.iterations/10),
+                                        name = "SIEA_MCTS",
+                                          rollouts=parser.rollouts,
+                                          use_semantics=True)]
 
     #Create gameplayer
 
@@ -125,14 +132,14 @@ def run_experiment(parser):
 
 if __name__ == "__main__":
     datetime_string = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    default_file_path = os.path.join("Outputs","Carcassonne_1p", "Carcassonne_full_det_1p",     datetime_string)
+    default_file_path = os.path.join("Outputs","Carcassonne_1p", "Carcassonne_less_siea",  datetime_string)
     parsers = []
-    parsers.append(ExperimentParser(seed=0, games=20, runs=1, iterations=5000, c=0.5, meeples=1, rollouts=1, random_events=0, file_path=default_file_path + "_" + str(1)))
-    parsers.append(ExperimentParser(seed=0, games=20, runs=1, iterations=5000, c=0.5, meeples=2, rollouts=1, random_events=0, file_path=default_file_path + "_" + str(2)))
-    parsers.append(ExperimentParser(seed=0, games=20, runs=1, iterations=5000, c=0.5, meeples=3, rollouts=1, random_events=0, file_path=default_file_path + "_" + str(3)))
-    parsers.append(ExperimentParser(seed=0, games=20, runs=1, iterations=5000, c=3, meeples=1, rollouts=1, random_events=0, file_path=default_file_path + "_" + str(4)))
-    parsers.append(ExperimentParser(seed=0, games=20, runs=1, iterations=5000, c=3, meeples=2, rollouts=1, random_events=0, file_path=default_file_path + "_" + str(5)))
-    parsers.append(ExperimentParser(seed=0, games=20, runs=1, iterations=5000, c=3, meeples=3, rollouts=1, random_events=0, file_path=default_file_path + "_" + str(6)))
+    parsers.append(ExperimentParser(seed=0, games=20, runs=1, iterations=5000, c=0.5, meeples=1, rollouts=1, random_events=0, file_path=default_file_path + "_det1"))
+    parsers.append(ExperimentParser(seed=0, games=20, runs=1, iterations=5000, c=0.5, meeples=2, rollouts=1, random_events=0, file_path=default_file_path  + "_det2"))
+    parsers.append(ExperimentParser(seed=0, games=20, runs=1, iterations=5000, c=0.5, meeples=3, rollouts=1, random_events=0, file_path=default_file_path + "_det3"))
+    parsers.append(ExperimentParser(seed=0, games=20, runs=1, iterations=5000, c=3, meeples=1, rollouts=1, random_events=1, file_path=default_file_path + "_sto1"))
+    parsers.append(ExperimentParser(seed=0, games=20, runs=1, iterations=5000, c=3, meeples=2, rollouts=1, random_events=1, file_path=default_file_path + "_sto2"))
+    parsers.append(ExperimentParser(seed=0, games=20, runs=1, iterations=5000, c=3, meeples=3, rollouts=1, random_events=1, file_path=default_file_path + "_sto3"))
 
 
     lock = mp.Lock()

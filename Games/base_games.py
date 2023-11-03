@@ -1,4 +1,4 @@
-from typing import Protocol
+from typing_extensions import Protocol
 from enum import Enum, auto
 from typing import List
 import pandas as pd

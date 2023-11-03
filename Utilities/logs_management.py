@@ -51,3 +51,16 @@ def find_log_files(file_name, logs_path = None):
             if file_name == file:
                file_path_list.append(os.path.join(root, file_name))
    return file_path_list
+
+
+def read_csv(file_path, remove_unnamed = True):
+   """
+   Reads a csv file and returns a DataFrame
+   """
+   if remove_unnamed:
+      headers = pd.read_csv(file_path, nrows=0)
+      valid_columns = [col for col in headers.columns if 'Unnamed' not in col]
+      df = pd.read_csv(file_path, usecols=valid_columns)
+   else:
+      df = pd.read_csv(file_path)
+   return df

@@ -41,8 +41,9 @@ class SIEA_MCTS_Player(vmcts.MCTS_Player):
                     es_semantics_l = 5,
                     es_semantics_u = 10,
                     unpaired_evolution = False,
+                logs_every_iterations = None,
                  logs = False):
-        super().__init__(rollouts, c, max_fm, max_time, max_iterations, default_policy, name, logs)
+        super().__init__(rollouts, c, max_fm, max_time, max_iterations, default_policy, name, logs_every_iterations, logs)
         self.es_lambda = es_lambda
         self.es_fitness_iterations = es_fitness_iterations
         self.es_generations = es_generations
