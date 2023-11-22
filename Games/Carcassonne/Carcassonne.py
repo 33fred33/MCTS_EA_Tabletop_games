@@ -629,6 +629,27 @@ class CarcassonneState:
         data["Meeples_on_farms_p2"] = self.meeples_on_farms[1]
         data["Total_played_meeples_p1"] = self.total_meeples_played[0]
         data["Total_played_meeples_p2"] = self.total_meeples_played[1]
+        data["Completed_city_points_p1"] = self.FeatureScores[0][0]
+        data["Completed_city_points_p2"] = self.FeatureScores[1][0]
+        data["Completed_road_points_p1"] = self.FeatureScores[0][1]
+        data["Completed_road_points_p2"] = self.FeatureScores[1][1]
+        data["Completed_cloister_points_p1"] = self.FeatureScores[0][2]
+        data["Completed_cloister_points_p2"] = self.FeatureScores[1][2]
+        data["Uncompleted_city_points_p1"] = self.FeatureScores[0][3]
+        data["Uncompleted_city_points_p2"] = self.FeatureScores[1][3]
+        data["Uncompleted_road_points_p1"] = self.FeatureScores[0][4]
+        data["Uncompleted_road_points_p2"] = self.FeatureScores[1][4]
+        data["Uncompleted_cloister_points_p1"] = self.FeatureScores[0][5]
+        data["Uncompleted_cloister_points_p2"] = self.FeatureScores[1][5]
+        data["Total_Farm_points_p1"] = self.FeatureScores[0][6]
+        data["Total_Farm_points_p2"] = self.FeatureScores[1][6]
+        data["Total_city_points_p1"] = self.FeatureScores[0][0]+self.FeatureScores[0][3]
+        data["Total_city_points_p2"] = self.FeatureScores[1][0]+self.FeatureScores[1][3]
+        data["Total_road_points_p1"] = self.FeatureScores[0][1]+self.FeatureScores[0][4]
+        data["Total_road_points_p2"] = self.FeatureScores[1][1]+self.FeatureScores[1][4]
+        data["Total_cloister_points_p1"] = self.FeatureScores[0][2]+self.FeatureScores[0][5]
+        data["Total_cloister_points_p2"] = self.FeatureScores[1][2]+self.FeatureScores[1][5]
+
         return pd.DataFrame(data, index=[0])
 
     def game_definition_data(self):
@@ -650,37 +671,43 @@ class CarcassonneState:
             data["tile_"+str(tile_index)+"_count"] = tile_count
         return pd.DataFrame(data, index=[0])
 
-    def sample_random_event(self, event_type):
+    def sample_random_event(self, event_type="Draw random tile", enforced_outcome = None):
         """Samples a random event of the game"""
         if event_type == "Draw random tile":
-            chosen_tiles = []
-            self.available_actions = []
-            while self.available_actions == []:
-                untested_tile_indexes = [tile_index for tile_index in self.TileIndexList if tile_index not in chosen_tiles]
-                if untested_tile_indexes == []:
-                    #set back turn change variables
-                    if self.players > 1:
-                        self.player_turn = 1 - self.player_turn
-                    self.turn -= 1
-                    #end game
-                    for tile in chosen_tiles: self.discardTile(tile)
-                    self.EndGameRoutine()
-                    return
-                else:
-                    random_tile = rd.choice(untested_tile_indexes)
-                    chosen_tiles.append(random_tile)
-                    self.available_actions = self.availableMoves(TileIndexOther = random_tile)
+            if enforced_outcome is None:
+                chosen_tiles = []
+                self.available_actions = []
+                while self.available_actions == []:
+                    untested_tile_indexes = [tile_index for tile_index in self.TileIndexList if tile_index not in chosen_tiles]
+                    if untested_tile_indexes == []:
+                        #set back turn change variables
+                        if self.players > 1:
+                            self.player_turn = 1 - self.player_turn
+                        self.turn -= 1
+                        #end game
+                        for tile in chosen_tiles: self.discardTile(tile)
+                        self.EndGameRoutine()
+                        return
+                    else:
+                        random_tile = rd.choice(untested_tile_indexes)
+                        chosen_tiles.append(random_tile)
+                        self.available_actions = self.availableMoves(TileIndexOther = random_tile)
+            else:
+                assert enforced_outcome in self.deck, "Enforced outcome is not a valid tile index, tile not in deck"
+                random_tile = enforced_outcome
+                self.available_actions = self.availableMoves(TileIndexOther = random_tile)
+                assert self.available_actions != [], "Enforced outcome is not a valid tile index, no actions available"
         else:
             raise ValueError("Unknown event type: "+str(event_type))
         
         chosen_tile_probability = self.TileIndexList.count(random_tile)/len(self.TileIndexList)
         random_event = base_games.RandomEvent(id = random_tile, probability = chosen_tile_probability, event_type="Draw random tile")
-        self.random_events = [random_event]
+        self.random_events = [random_event] #This prevent multiple random events to stack
         self.next_tile_index = random_tile
         
         return random_event
 
-    def max_score(self):
+    def max_score(self, verbose=False):
 
         #initialise variables
         city_points = 0
@@ -717,44 +744,59 @@ class CarcassonneState:
                 monastery_points += quantity * 9
         
         #sort score stacks
-        sorted_single_city_values = sorted(single_city_values, reverse=True)
-        sorted_pizza_city_values = sorted(pizza_city_values, reverse=True)
-        sorted_triple_city_values = sorted(triple_city_values, reverse=True)
-        sorted_quad_city_values = sorted(quad_city_values, reverse=True)
+        #sorted_single_city_values = sorted(single_city_values, reverse=True)
+        #sorted_pizza_city_values = sorted(pizza_city_values, reverse=True)
+        #sorted_triple_city_values = sorted(triple_city_values, reverse=True)
+        #sorted_quad_city_values = sorted(quad_city_values, reverse=True)
 
         #How many single cities are closed?
-        closed_cities += int(len(sorted_single_city_values) / 2)
-        if len(sorted_single_city_values) % 2 == 1:
-            not_closed_city_values.append(sorted_single_city_values.pop(-1))
-        city_points += sum(sorted_single_city_values) * 2
+        closed_cities += int(len(single_city_values) / 2)
+        #if len(sorted_single_city_values) % 2 == 1:
+        #    not_closed_city_values.append(sorted_single_city_values.pop(-1))
+        #city_points += sum(sorted_single_city_values) * 2
 
         #How many double cities are closed?
-        closed_cities += int(len(sorted_pizza_city_values) / 4)
-        for _ in range(len(sorted_pizza_city_values) % 4):
-            not_closed_city_values.append(sorted_pizza_city_values.pop(-1))
-        city_points += sum(sorted_pizza_city_values) * 2
+        closed_cities += int(len(pizza_city_values) / 4)
+        #for _ in range(len(sorted_pizza_city_values) % 4):
+        #    not_closed_city_values.append(sorted_pizza_city_values.pop(-1))
+        #city_points += sum(sorted_pizza_city_values) * 2
+
+        if int(len(single_city_values)) % 2 == 1 and int(len(pizza_city_values)) % 4 == 3 and len(triple_city_values) > 1:
+            closed_cities += 1
 
         #Find how many triple cities can be closed with pizzas
-        if len(sorted_pizza_city_values) >= 4 and len(sorted_triple_city_values) >= 2:
-                if len(sorted_triple_city_values) % 2 == 1:
-                    not_closed_city_values.append(sorted_triple_city_values.pop(-1))
-                city_points += sum(sorted_triple_city_values) *2
-        else:
-            not_closed_city_values += sorted_triple_city_values
+        #if len(sorted_pizza_city_values) >= 4 and len(sorted_triple_city_values) >= 2:
+        #        if len(sorted_triple_city_values) % 2 == 1:
+        #            not_closed_city_values.append(sorted_triple_city_values.pop(-1))
+        #        city_points += sum(sorted_triple_city_values) *2
+        #else:
+        #    not_closed_city_values += sorted_triple_city_values
 
         #Find how many quad cities can be closed with pizzas
-        quads_can_be_closed = int(min(int(len(sorted_pizza_city_values)) / 4 , int(len(sorted_triple_city_values) / 4)))
-        quads_cannot_be_closed = int(min(len(sorted_quad_city_values) - quads_can_be_closed,0))
-        for _ in range(quads_cannot_be_closed):
-            not_closed_city_values += sorted_quad_city_values.pop(-1)
-        city_points += sum(sorted_quad_city_values) * 2 
+        #quads_can_be_closed = int(min(int(len(sorted_pizza_city_values)) / 4 , int(len(sorted_triple_city_values) / 4)))
+        #quads_cannot_be_closed = int(min(len(sorted_quad_city_values) - quads_can_be_closed,0))
+        #for _ in range(quads_cannot_be_closed):
+        #    not_closed_city_values += sorted_quad_city_values.pop(-1)
+        #city_points += sum(sorted_quad_city_values) * 2 
 
         #Use meeples to score unfinished cities
-        max_meeples = max(self.initial_meeples) - 1 #minus one used for a hypothetical unique farm
-        city_points += sum(sorted(not_closed_city_values, reverse=True)[:max_meeples])
+        #max_meeples = max(self.initial_meeples) - 1 #minus one used for a hypothetical unique farm
+        #city_points += sum(sorted(not_closed_city_values, reverse=True)[:max_meeples])
         
-        closed_cities = int(single_city_end / 2 + pizza_city / 4)
-        return city_points + road_points + monastery_points + closed_cities * 3
+        #closed_cities = int(single_city_end / 2 + pizza_city / 4)
+
+        #calculate points
+        city_points = sum(single_city_values) * 2 + sum(pizza_city_values) * 2 + sum(triple_city_values) * 2 + sum(quad_city_values) * 2
+        farm_points = closed_cities * 3 * max(self.initial_meeples)
+        max_score = city_points + road_points + monastery_points + farm_points
+        if verbose:
+            print("City points: ", city_points)
+            print("Road points: ", road_points)
+            print("Monastery points: ", monastery_points)
+            print("Closed cities: ", closed_cities)
+            print("Farm points: ", farm_points)
+            print(f"Max score: {max_score}")
+        return max_score
 
     def __repr__(self):
         #Str = str(self.TileIndexList) + "\n" + str(self.Board) + "\n" + str(self.BoardCities) + "\n" + str(self.BoardRoads) + "\n" + str(self.BoardMonasteries) + "\n" + str(self.BoardFarms)

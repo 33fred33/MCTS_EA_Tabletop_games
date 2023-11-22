@@ -359,6 +359,8 @@ class MCTS_Player(BaseAgent):
 
         #State was terminal
         if node.state.is_terminal:
+            #print("Warning: simulation called on terminal node:", str(node.node_data()))
+            #print("multiple_rewards:", node.state.reward[self.player], node.state.reward[self.player], node.state.reward[self.player])
             return node.state.reward[self.player]
 
         #Execute simulations
@@ -487,10 +489,11 @@ class MCTS_Player(BaseAgent):
             "root_node_avg_reward": self.root_node.average_reward(),
             "nodes_count": self.nodes_count,
             "playing_as": self.player,
-            "avg_leaf_node_depth": np.mean(lnd),
-            "max_leaf_node_depth": np.max(lnd),
-            "min_leaf_node_depth": np.min(lnd),
-            "std_leaf_node_depth": np.std(lnd),
+            "avg_leaf_node_depth": np.mean(lnd) if len(lnd) > 0 else np.nan,
+            "max_leaf_node_depth": np.max(lnd) if len(lnd) > 0 else np.nan,
+            "min_leaf_node_depth": np.min(lnd) if len(lnd) > 0 else np.nan,
+            "std_leaf_node_depth": np.std(lnd) if len(lnd) > 1 else np.nan,
+            "leaf_node_count": len(lnd),
             "max_visits_action": str(max_visits_action),
             "max_visits_node": str(max_visits_node),
             "max_visits": max_visits_node.visits,

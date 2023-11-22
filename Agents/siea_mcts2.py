@@ -24,7 +24,7 @@ creator.create("FitnessMax", base.Fitness, weights=(1.0,)) #This can be outside
 # define the structure of the programs 
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)  #This can be outside
 
-class SIEA_MCTS_Player(vmcts.MCTS_Player):
+class SIEA_MCTS_Player2(vmcts.MCTS_Player):
 
     def __init__(self, 
                  rollouts=1, 
@@ -33,16 +33,17 @@ class SIEA_MCTS_Player(vmcts.MCTS_Player):
                  max_time=np.inf, 
                  max_iterations=np.inf, 
                  default_policy = RandomPlayer(), 
-                 name = "SIEA_MCTS",
-                    use_semantics = True,
+                 name = "SIEA_MCTS2",
+                    use_semantics = False,
                     es_lambda = 4,
                     es_fitness_iterations = 30,
                     es_generations = 20,
                     es_semantics_l = 5,
                     es_semantics_u = 10,
                     unpaired_evolution = False,
+                logs_every_iterations = None,
                  logs = False):
-        super().__init__(rollouts, c, max_fm, max_time, max_iterations, default_policy, name, logs)
+        super().__init__(rollouts = rollouts, c=c, max_fm=max_fm, max_time=max_time, max_iterations=max_iterations, default_policy=default_policy, name=name, logs=logs, logs_every_iterations= logs_every_iterations)
         self.es_lambda = es_lambda
         self.es_fitness_iterations = es_fitness_iterations
         self.es_generations = es_generations
@@ -59,6 +60,7 @@ class SIEA_MCTS_Player(vmcts.MCTS_Player):
 
     def choose_action(self, state):
         self.evolution_logs = pd.DataFrame()
+        self.final_evolution_data = pd.DataFrame()
         self.hasGPTree = False
         self.GPTree = None
         self.evolution_fm_calls = 0
@@ -109,6 +111,7 @@ class SIEA_MCTS_Player(vmcts.MCTS_Player):
 
     def _update_choose_action_logs(self):
         super()._update_choose_action_logs()
+        assert "forward_model_calls" in self.choose_action_logs.columns, "Forward model calls not in choose_action_logs"
         self.choose_action_logs["evolved_a_tree"] = self.hasGPTree
 
         evolution_data = {}
@@ -135,6 +138,7 @@ class SIEA_MCTS_Player(vmcts.MCTS_Player):
 
             evolution_df = pd.DataFrame(evolution_data, index=[0])
             self.choose_action_logs = pd.concat([self.choose_action_logs, evolution_df], axis=1)
+            self.choose_action_logs = pd.concat([self.choose_action_logs, self.final_evolution_data], axis=1)
 
     def dump_my_logs(self, path):
         super().dump_my_logs(path)
@@ -210,6 +214,17 @@ def ES_Search(RootNode, MCTS_Player):
 
     def evalTree(individual, RootNode, mcts_player): #OK
         # Transform the tree expression in a callable function
+        #print("Evaluating formula", str(individual))
+        #verify individual  validity
+        f = str(individual)
+        for terminal in ["n","N","Q"]:
+            appearances = f.count(terminal)
+            if terminal == "n":
+                appearances -= f.count("ln")
+            if appearances == 0:
+                #individual is not valid
+                individual.semantics = [0 for i in range(es_fitness_iterations)]
+                return float(0), #make the worst individual 0 -> might cause errors
         func = toolbox.compile(expr=individual)
         
         # from this point simulate the game 10 times appending the results
@@ -217,152 +232,50 @@ def ES_Search(RootNode, MCTS_Player):
         for i in range(es_fitness_iterations):
             # copy the state
             #stateCopy = RootNode.state.duplicate()
-            node = RootNode
+            node = mcts_player.root_node
             
-            """
-            print("Sample child evaluation")
-            print("Individual: ", individual)
-            for c in node.children.values():
-                print("Function evaluation: ", func(c.average_reward(), c.visits, node.visits))
-                print("UCB1 evaluation: ", c.average_reward() + 2*random_C * math.sqrt(2*math.log(node.visits) / c.visits))
-                print("Child Q:", c.average_reward(), "Child n:", c.visits, "Child N:", node.visits, "C:", random_C)
-            """
             def my_tree_policy_formula(node):
                 if node.visits == 0:
                     return np.inf
                 if node.parent.state.player_turn == mcts_player.player:
                     return func(node.average_reward(), node.visits, node.parent.visits) 
                 else:
-                    return -func(node.average_reward(), node.visits, node.parent.visits)
+                    return func(-node.average_reward(), node.visits, node.parent.visits)
             
             #node = mcts_player.best_child_by_tree_policy(children = node.children.values(), my_tree_policy_formula = my_tree_policy_formula)
             node = mcts_player.selection(node, my_tree_policy_formula=my_tree_policy_formula, allow_evolution=False)
 
-            #node = mcts_player.expansion(node)
-
-            # play the move of this child node
-            #stateCopy.make_action(node.edge_action)
-            stateCopy = node.state.duplicate()
-            
-            # random rollout
-            while not stateCopy.is_terminal:
-                stateCopy.make_action(mcts_player.default_policy.choose_action(stateCopy))
-                mcts_player.current_fm = mcts_player.current_fm + 1
-                mcts_player.evolution_fm_calls = mcts_player.evolution_fm_calls + 1
-                #stateCopy.make_action()
-                
-            # result
-            reward = stateCopy.reward[mcts_player.player]
-            results.append(reward)
-            
-            #Backpropogate
-            while node != None:  # backpropogate from the expected node and work back until reaches root_node
-                node.update(new_reward = reward)
-                node = node.parent
-        
-        # semantics check  
-        individual.semantics = sorted(results)
-        
-        fitness = np.mean(results)
-        
-        return fitness,
-        
-    def evalTreeClone(individual, RootNode, mcts_player): #OK
-        # Transform the tree expression in a callable function
-        func = toolbox.compile(expr=individual)
-        results = []
-
-        #Set mcts clone
-        root_node = RootNode.duplicate()
-        dummy_mcts = vmcts.MCTS_Player(rollouts=1, c=mcts_player.c, max_iterations=0, default_policy=mcts_player.default_policy, name=mcts_player.name + "_dummy", logs = False)
-        dummy_mcts.choose_action(root_node.state)
-        dummy_mcts.set_tree(root_node) 
-
-        #Changes reward, not whole expression
-        def my_tree_policy_formula(node):
-            if node.visits == 0:
-                return np.inf
-            if node.parent.state.player_turn == dummy_mcts.player:
-                return func(node.average_reward(), node.visits, node.parent.visits) 
-            else:
-                return func(-node.average_reward(), node.visits, node.parent.visits)
-
-        for i in range(es_fitness_iterations):
-            
-            node = root_node
-            ##### Selection #####
-            node = dummy_mcts.selection(node, my_tree_policy_formula=my_tree_policy_formula)
-            
-            ##### Expansion #####
-            if node.can_be_expanded():
-                node = dummy_mcts.expansion(node)
-
-            ##### Simulation #####
-            reward = dummy_mcts.simulation(node, 1, dummy_mcts.default_policy) 
-            results.append(reward)
-            
-            ##### Backpropagation #####
-            dummy_mcts.backpropagation(node, reward)
-        
-        #update variables
-        mcts_player.evolution_fm_calls = mcts_player.evolution_fm_calls + dummy_mcts.current_fm
-        mcts_player.current_fm = mcts_player.current_fm + dummy_mcts.current_fm
-
-        # semantics check  
-        individual.semantics = sorted(results)
-        
-        #fitness = eu.best_leaf_node(root_node, criteria="avg_reward").average_reward() #Only works for one player games
-        fitness = np.mean(results)
-        return fitness,
-
-    def evalTreeExpand(individual, RootNode, mcts_player): #OK
-        # Transform the tree expression in a callable function
-        root_node = RootNode
-        func = toolbox.compile(expr=individual)
-        results = []
-
-        #Changes reward, not whole expression
-        def my_tree_policy_formula(node):
-            if node.visits == 0:
-                return np.inf
-            if node.parent.state.player_turn == mcts_player.player:
-                return func(node.average_reward(), node.visits, node.parent.visits) 
-            else:
-                return func(-node.average_reward(), node.visits, node.parent.visits)
-
-        starting_fm = mcts_player.current_fm
-        for i in range(es_fitness_iterations):
-            
-            node = root_node
-            ##### Selection #####
-            node = mcts_player.selection(node, my_tree_policy_formula=my_tree_policy_formula, allow_evolution=False)
-            
-            ##### Expansion #####
+            #Expansion
             if node.can_be_expanded():
                 node = mcts_player.expansion(node)
 
-            ##### Simulation #####
-            reward = mcts_player.simulation(node, 1, mcts_player.default_policy) 
-            results.append(reward)
-            
-            ##### Backpropagation #####
-            mcts_player.backpropagation(node, reward)
-        
-        #update variables
-        mcts_player.evolution_fm_calls = mcts_player.evolution_fm_calls + mcts_player.current_fm - starting_fm
+            #Simulation
+            if node.state.is_terminal:
+                #when state is terminal, reroll reward by cloning parent state again. Useful only for FOP
+                past_state = node.parent.state.duplicate()
+                past_state.make_action(node.edge_action)
+                node.state = past_state
+            reward = mcts_player.simulation(node, mcts_player.rollouts, mcts_player.default_policy) 
 
+            #Backpropagation
+            mcts_player.backpropagation(node, reward)
+
+            mcts_player.current_iterations = mcts_player.current_iterations + 1
+            
+            results.append(reward)
+        
         # semantics check  
         individual.semantics = sorted(results)
         
-        #fitness = eu.best_leaf_node(root_node, criteria="avg_reward").average_reward() #Only works for one player games
         fitness = np.mean(results)
+        #if fitness == 1:
+        #  print("Fitness is 1 for formula: " + str(individual))
+        
         return fitness,
 
+
     # register gp functions
-    if MCTS_Player.unpaired_evolution:
-        toolbox.register("evaluate", evalTreeExpand, RootNode=RootNode, mcts_player=MCTS_Player)
-    else:
-        toolbox.register("evaluate", evalTree, RootNode=RootNode, mcts_player=MCTS_Player)
+    toolbox.register("evaluate", evalTree, RootNode=RootNode, mcts_player=MCTS_Player)
     toolbox.register("select", selBestCustom)
     toolbox.register("mate", gp.cxOnePoint)
     toolbox.register("expr_mut", gp.genFull, min_=1, max_=3)
@@ -412,7 +325,8 @@ def ES_Search(RootNode, MCTS_Player):
                 'evolved_formula_depth': (hof[0]).height,
                 "evolved_c": random_C}
         #MCTS_Player._update_choose_action_logs(pd.DataFrame(data, index=[0])) 
-        MCTS_Player.choose_action_logs = pd.concat([MCTS_Player.choose_action_logs, pd.DataFrame(data, index=[0])], axis=1)
+        #MCTS_Player.choose_action_logs = pd.concat([MCTS_Player.choose_action_logs, pd.DataFrame(data, index=[0])], axis=1)
+        MCTS_Player.final_evolution_data = pd.DataFrame(data, index=[0])
         
         print(f'Chosen formula: {formula}')
         return toolbox.compile(expr=hof[0])

@@ -43,7 +43,7 @@ class SIEA_MCTS_Player(vmcts.MCTS_Player):
                     unpaired_evolution = False,
                 logs_every_iterations = None,
                  logs = False):
-        super().__init__(rollouts, c, max_fm, max_time, max_iterations, default_policy, name, logs_every_iterations, logs)
+        super().__init__(rollouts = rollouts, c=c, max_fm=max_fm, max_time=max_time, max_iterations=max_iterations, default_policy=default_policy, name=name, logs=logs, logs_every_iterations= logs_every_iterations)
         self.es_lambda = es_lambda
         self.es_fitness_iterations = es_fitness_iterations
         self.es_generations = es_generations
@@ -60,6 +60,7 @@ class SIEA_MCTS_Player(vmcts.MCTS_Player):
 
     def choose_action(self, state):
         self.evolution_logs = pd.DataFrame()
+        self.final_evolution_data = pd.DataFrame()
         self.hasGPTree = False
         self.GPTree = None
         self.evolution_fm_calls = 0
@@ -110,6 +111,7 @@ class SIEA_MCTS_Player(vmcts.MCTS_Player):
 
     def _update_choose_action_logs(self):
         super()._update_choose_action_logs()
+        assert "forward_model_calls" in self.choose_action_logs.columns, "Forward model calls not in choose_action_logs"
         self.choose_action_logs["evolved_a_tree"] = self.hasGPTree
 
         evolution_data = {}
@@ -136,6 +138,7 @@ class SIEA_MCTS_Player(vmcts.MCTS_Player):
 
             evolution_df = pd.DataFrame(evolution_data, index=[0])
             self.choose_action_logs = pd.concat([self.choose_action_logs, evolution_df], axis=1)
+            self.choose_action_logs = pd.concat([self.choose_action_logs, self.final_evolution_data], axis=1)
 
     def dump_my_logs(self, path):
         super().dump_my_logs(path)
@@ -413,7 +416,8 @@ def ES_Search(RootNode, MCTS_Player):
                 'evolved_formula_depth': (hof[0]).height,
                 "evolved_c": random_C}
         #MCTS_Player._update_choose_action_logs(pd.DataFrame(data, index=[0])) 
-        MCTS_Player.choose_action_logs = pd.concat([MCTS_Player.choose_action_logs, pd.DataFrame(data, index=[0])], axis=1)
+        #MCTS_Player.choose_action_logs = pd.concat([MCTS_Player.choose_action_logs, pd.DataFrame(data, index=[0])], axis=1)
+        MCTS_Player.final_evolution_data = pd.DataFrame(data, index=[0])
         
         print(f'Chosen formula: {formula}')
         return toolbox.compile(expr=hof[0])

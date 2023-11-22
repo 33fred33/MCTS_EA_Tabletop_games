@@ -13,13 +13,14 @@ import Games.mnk as mnk
 import Agents.random as arand
 import Agents.vanilla_mcts as mcts 
 import Agents.siea_mcts as siea_mcts
+import Agents.siea_mcts2 as siea_mcts2
 import Games.function_optimisation as fo
 import Utilities.logs_management as lm
 
 start_time = time.time()
 
 #FOP experiment
-logs_path = os.path.join("Outputs","FO_single_decision_new2")
+logs_path = os.path.join("Outputs","FO_single_decision_missing_leaf_node")
 random_seed = 1234
 np.random.seed(random_seed)
 rd.seed(random_seed)
@@ -45,7 +46,7 @@ agents = [mcts.MCTS_Player(max_iterations=iterations,
                            logs=True, 
                            c=c, 
                            name = "MCTS_c" + c_names[i]) for i,c in enumerate(c_list)]
-"""
+
 agents = agents + [siea_mcts.SIEA_MCTS_Player(max_iterations=its, 
                                          es_lambda=es_lambda, 
                                          es_fitness_iterations=es_fitness_iterations,
@@ -54,14 +55,14 @@ agents = agents + [siea_mcts.SIEA_MCTS_Player(max_iterations=its,
                                         es_semantics_u = 0.5,
                                         name = "SIEA_MCTS_its" + str(its),
                                          logs=True) for its in [iterations, iterations-evolution_iterations]]
-
-agents = agents + [siea_mcts.SIEA_MCTS_Player(max_iterations=its, 
+"""
+agents = agents + [siea_mcts2.SIEA_MCTS_Player2(max_iterations=its, 
                                          es_lambda=es_lambda, 
                                          es_fitness_iterations=es_fitness_iterations,
                                         es_generations=es_generations,
                                         es_semantics_l=0.1,
                                         es_semantics_u = 0.5,
-                                        name = "EA_MCTS_its" + str(its),
+                                        name = "SIEA2_MCTS_its" + str(its),
                                         use_semantics=False,
                                          logs=True) for its in [iterations, iterations-evolution_iterations]]
 """
@@ -93,6 +94,8 @@ for function_index in function_indexes:
 for file_name in ["evolution_logs.csv", "results.csv", "logs_by_run.csv"]:
     file_path_list = lm.find_log_files(file_name, logs_path)
     lm.combine_logs(logs_path, file_name, file_path_list)
+
+#Evolved formulas analysis
 
 data = pd.read_csv(os.path.join(logs_path, "logs_by_run.csv"))
 evolved_formula_data = pd.DataFrame()

@@ -20,6 +20,8 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 import matplotlib.pyplot as plt
+import colorsys
+from IPython.display import HTML
 
 class GamePlayer():
     def __init__(self, game_state, players) -> None:
@@ -144,7 +146,7 @@ class GamePlayer():
     def _update_logs_by_iteration(self, logs):
         self.logs_by_iteration = pd.concat([self.logs_by_iteration, logs], ignore_index=True)
 
-    def play_games(self, n_games, random_seed = None, logs = True, logs_dispatch_after = 1, logs_path = None) -> None:
+    def play_games(self, n_games, random_seed = None, logs = True, logs_dispatch_after = 1, logs_path = None, verbose = False) -> None:
         "Plays n_games games"
         if random_seed is not None: 
             rd.seed(random_seed)
@@ -155,8 +157,8 @@ class GamePlayer():
             np.random.seed(random_seed)
         seeds = rd.sample(range(0, 2**32), n_games)
         for i in range(n_games):
-            if logs: print("Playing game " + str(i+1) + " of " + str(n_games) + ", agents: " + str([a.name for a in self.players]))
-            self.play_game(random_seed = seeds[i], logs = logs)
+            if verbose: print("Playing game " + str(i+1) + " of " + str(n_games) + ", agents: " + str([a.name for a in self.players]))
+            self.play_game(random_seed = seeds[i], logs = logs, verbose = verbose)
             if logs:
                 if i % logs_dispatch_after == 0:
                     self.save_data(logs_path)
@@ -311,9 +313,10 @@ def mcts_decision_analysis(game_state, mcts_player, logs_path, runs = 1, random_
         this_run_df = pd.DataFrame(this_run_data, index=[0])
         this_run_df = pd.concat([this_run_df, game_state.game_definition_data()], axis=1)
         this_run_df = pd.concat([this_run_df, mcts_player.choose_action_logs], axis=1)
-        this_run_df = pd.concat([this_run_df, mcts_player.root_node.node_data()], axis=1)
+        #this_run_df = pd.concat([this_run_df, mcts_player.root_node.node_data()], axis=1)
         logs_by_run = pd.concat([logs_by_run, this_run_df], ignore_index=True)
         mcts_player.dump_my_logs(os.path.join(logs_path, "Run_" + str(i)))
+        #lm.dump_data(logs_by_run, file_path= os.path.join(logs_path, "Run_" + str(i)), file_name="logs_by_run.csv")
 
     #Update global logs
     global_data = {
@@ -787,7 +790,7 @@ def random_rollout(game_state, default_agent):
     return logs_dict
 
 #Visualisation
-def fo_tree_histogram(data_list, function, title, divisions, n_buckets = 100, subplot_titles=None, max_x_location = None, y_ref_value = None):
+def fo_tree_histogram(data_list, function, title, divisions, n_buckets = 100, subplot_titles=None, max_x_location = None, y_ref_value = None, only_leafs = False):
     """
     Returns a figure with histogram for each agent
     Input: Array of dataframes, one for each agent.
@@ -1282,3 +1285,14 @@ def count_in_bins(x, n_bins, start=0, stop=1):
                 break
     count_data = {k+half_step:counts[k] for k in counts.keys()}
     return count_data
+
+def generate_color_palette(num_colors):
+    palette = []
+    for i in range(num_colors):
+        hue = i / num_colors
+        # Choosing a fixed saturation and lightness to ensure high contrast
+        saturation, lightness = 0.7, 0.4
+        rgb = colorsys.hls_to_rgb(hue, lightness, saturation)
+        hex_color = "#{:02x}{:02x}{:02x}".format(int(rgb[0]*255), int(rgb[1]*255), int(rgb[2]*255))
+        palette.append(hex_color)
+    return palette
