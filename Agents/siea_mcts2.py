@@ -366,27 +366,27 @@ def eaMuCommaLambdaCustom(MCTS_Player, turn, population, toolbox, mu, lambda_, n
 
         # Evaluate the individuals with an invalid fitness
         #print("Evaluating individuals")
-        invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-        fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+        current_pop = offspring + population #added population to fitness again the individuals
+        fitnesses = toolbox.map(toolbox.evaluate, current_pop)
         #print("Firnesses: " + str(fitnesses))
         
-        for ind, fit in zip(invalid_ind, fitnesses):
+        for ind, fit in zip(current_pop, fitnesses):
             ind.fitness.values = fit
 
         # Update the hall of fame with the generated individuals
         if halloffame is not None:
-            halloffame.update(offspring)
+            halloffame.update(current_pop)
 
         # Select the next generation population
         #print("Selecting next generation, pop size:", str(len(population)), ", offspring size:",str(len(offspring)))
-        population[:] = toolbox.select(population + offspring, MCTS_Player, gen, turn)
+        population[:] = toolbox.select(current_pop, MCTS_Player, gen, turn)
 
         # Update the statistics with the new population
         
         if verbose:
             #print("Updating statistics")
             record = stats.compile(population) if stats is not None else {}
-            logbook.record(gen=gen, nevals=len(invalid_ind), **record)
+            logbook.record(gen=gen, nevals=len(current_pop), **record)
             #print(logbook.stream)
     return population
 
