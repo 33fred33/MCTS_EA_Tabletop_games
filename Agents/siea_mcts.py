@@ -19,6 +19,8 @@ from deap import creator
 from deap import tools
 from deap import gp
 
+#ea and siea dont increase their iterations when they evolve
+
 # want to maximise the solution
 creator.create("FitnessMax", base.Fitness, weights=(1.0,)) #This can be outside
 # define the structure of the programs 
