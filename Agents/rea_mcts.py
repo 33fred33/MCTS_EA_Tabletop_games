@@ -33,14 +33,13 @@ class SIEA_MCTS_Player2(vmcts.MCTS_Player):
                  max_time=np.inf, 
                  max_iterations=np.inf, 
                  default_policy = RandomPlayer(), 
-                 name = "SIEA_MCTS2",
+                 name = "REA_MCTS",
                     use_semantics = False,
                     es_lambda = 4,
                     es_fitness_iterations = 30,
                     es_generations = 20,
                     es_semantics_l = 5,
                     es_semantics_u = 10,
-                    unpaired_evolution = False,
                 logs_every_iterations = None,
                  logs = False):
         super().__init__(rollouts = rollouts, c=c, max_fm=max_fm, max_time=max_time, max_iterations=max_iterations, default_policy=default_policy, name=name, logs=logs, logs_every_iterations= logs_every_iterations)
@@ -50,7 +49,6 @@ class SIEA_MCTS_Player2(vmcts.MCTS_Player):
         self.es_semantics_l = es_semantics_l
         self.es_semantics_u = es_semantics_u
         self.use_semantics = use_semantics
-        self.unpaired_evolution = unpaired_evolution
 
         self.GPTree = None
         self.hasGPTree = False
@@ -255,21 +253,14 @@ def ES_Search(RootNode, MCTS_Player):
                 past_state = node.parent.state.duplicate()
                 past_state.make_action(node.edge_action)
                 node.state = past_state
-                reward = mcts_player.simulation(node, mcts_player.rollouts, mcts_player.default_policy)
-                if hasattr(node.state, "losing_reward"):
-                    reward_fitness = node.state.losing_reward
-                else:
-                    reward_fitness = 0
-            else:
-                reward = mcts_player.simulation(node, mcts_player.rollouts, mcts_player.default_policy) 
-                reward_fitness = reward
+            reward = mcts_player.simulation(node, mcts_player.rollouts, mcts_player.default_policy) 
 
             #Backpropagation
             mcts_player.backpropagation(node, reward)
 
             mcts_player.current_iterations = mcts_player.current_iterations + 1
             
-            results.append(reward_fitness)
+            results.append(reward)
         
         # semantics check  
         individual.semantics = sorted(results)

@@ -350,7 +350,9 @@ def mcts_decision_analysis(game_state, mcts_player, logs_path, runs = 1, random_
 
 def evolved_formula_analysis(data):
    output={}
-   for terminal in ["n","N","Q"]:
+   terminals = ["n","N","Q"]
+   assert terminals[-1] == "Q", "Q must be the last terminal"
+   for terminal in terminals: #ensure Q is at the end, for compatibility
       terminal_count = 0
       all_appareances = []
       for f in data["evolved_formula"]:
@@ -922,7 +924,7 @@ def fo_tree_histogram(data_list, function, title, divisions, n_buckets = 100, su
 
     return fig
 
-def fo_tree_histogram_average(data_list, function, title, divisions, n_buckets = 100, subplot_titles=None, max_x_location = None, y_ref_value = None):
+def fo_tree_histogram_average(data_list, function, title, divisions, n_buckets = 100, subplot_titles=None, max_x_location = None, y_ref_value = None, height = 1000, width = 800, extra_bottom_margin = 0, legend_y = -0.075):
     """
     Returns a figure with histogram for each agent
     Input: Array of dataframes, one for each agent.
@@ -932,7 +934,12 @@ def fo_tree_histogram_average(data_list, function, title, divisions, n_buckets =
         colors = ["#5B8C5A" ,"#56638A" , "#EC7316"]
         colors = ['#8cae8b', '#667295', '#8d450d']
     n_plots = len(data_list)
-    even_spaces = 1/(n_plots+1)
+    if n_plots > 5: 
+        even_spaces = 1/(n_plots+1)
+        vertical_spacing = 0.04
+    else: 
+        even_spaces = 1/(n_plots+1)
+        vertical_spacing = 0.1
     row_heights = [even_spaces for _ in range(n_plots)] + [even_spaces]
 
     #print("row_heights", row_heights)
@@ -942,7 +949,7 @@ def fo_tree_histogram_average(data_list, function, title, divisions, n_buckets =
     fig = make_subplots(rows=n_plots+1
                         ,cols=1
                         ,shared_xaxes=True
-                        ,vertical_spacing=0.04
+                        ,vertical_spacing=vertical_spacing
                         ,row_heights=row_heights
                         ,subplot_titles = subplot_titles
                         , specs=[[{"secondary_y": True}] for _ in range(n_plots+1)]
@@ -994,9 +1001,9 @@ def fo_tree_histogram_average(data_list, function, title, divisions, n_buckets =
                                 marker={"color":colors[div]},
                                     ),row=i+2,col=1)
 
-    fig.update_layout(margin=dict(l=70, r=10, t=30, b=50)
-                        ,width=800
-                        ,height=900
+    fig.update_layout(margin=dict(l=70, r=10, t=30, b=50 + extra_bottom_margin)
+                        ,width=width
+                        ,height=height
                         ,plot_bgcolor='rgba(0,0,0,0)'
                         #,plot_bgcolor="lightgray"
                         ,title={"text":title}
@@ -1006,7 +1013,7 @@ def fo_tree_histogram_average(data_list, function, title, divisions, n_buckets =
                             title = "Percentage of the total iterations"
                             ,orientation="h"
                             ,yanchor="top"
-                            ,y=-0.075
+                            ,y=legend_y
                             #,xanchor="center"
                             #,x=0.4
                             ,bgcolor="white"#"lightgray"#"rgba(200, 255, 255, 0.8)"

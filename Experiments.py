@@ -20,7 +20,7 @@ import Utilities.logs_management as lm
 start_time = time.time()
 
 #FOP experiment
-logs_path = os.path.join("Outputs","FO_single_decision_extra_iterations_eamcts2")
+logs_path = os.path.join("Outputs","FO_single_decision_extra_iterations_eamcts2_2")
 random_seed = 1234
 np.random.seed(random_seed)
 rd.seed(random_seed)
@@ -64,7 +64,7 @@ agents = agents + [siea_mcts2.SIEA_MCTS_Player2(max_iterations=its, #this agent 
                                         es_semantics_u = 0.5,
                                         name = "SIEA2_MCTS_its" + str(its),
                                         use_semantics=False,
-                                         logs=True) for its in [iterations+evolution_iterations]] #modify AWARE
+                                         logs=True) for its in [iterations, iterations+evolution_iterations]] #modify AWARE
 """
 agents = agents + [siea_mcts.SIEA_MCTS_Player(max_iterations=its, 
                                         unpaired_evolution = True, ###########################bewaree
