@@ -1298,7 +1298,7 @@ def generate_color_palette(num_colors):
     for i in range(num_colors):
         hue = i / num_colors
         # Choosing a fixed saturation and lightness to ensure high contrast
-        saturation, lightness = 0.7, 0.4
+        saturation, lightness = 0.8, 0.45
         rgb = colorsys.hls_to_rgb(hue, lightness, saturation)
         hex_color = "#{:02x}{:02x}{:02x}".format(int(rgb[0]*255), int(rgb[1]*255), int(rgb[2]*255))
         palette.append(hex_color)
