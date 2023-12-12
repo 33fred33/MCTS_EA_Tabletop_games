@@ -20,7 +20,7 @@ import Utilities.logs_management as lm
 start_time = time.time()
 
 #FOP experiment
-logs_path = os.path.join("Outputs","FO_single_decision_extra_iterations_eamcts2_2")
+logs_path = os.path.join("Outputs","FOP")
 random_seed = 1234
 np.random.seed(random_seed)
 rd.seed(random_seed)
@@ -47,34 +47,34 @@ agents = [mcts.MCTS_Player(max_iterations=iterations,
                            c=c, 
                            name = "MCTS_c" + c_names[i]) for i,c in enumerate(c_list)]
 
-agents = agents + [siea_mcts.SIEA_MCTS_Player(max_iterations=its, 
+"""
+agents = agents + [siea_mcts2.SIEA_MCTS_Player2(max_iterations=its,
+                                         es_lambda=es_lambda, 
+                                         es_fitness_iterations=es_fitness_iterations,
+                                        es_generations=es_generations,
+                                        name = "SIEA2_MCTS_discard",
+                                        use_semantics=False,
+                                         logs=True) for its in [iterations]]
+"""
+agents = agents + [siea_mcts.SIEA_MCTS_Player(max_iterations=its,
+                                              use_semantics=True,
                                          es_lambda=es_lambda, 
                                          es_fitness_iterations=es_fitness_iterations,
                                         es_generations=es_generations,
                                         es_semantics_l=0.1,
                                         es_semantics_u = 0.5,
                                         name = "SIEA_MCTS_its" + str(its),
-                                         logs=True) for its in [iterations, iterations-evolution_iterations]]
-"""
-agents = agents + [siea_mcts2.SIEA_MCTS_Player2(max_iterations=its, #this agent incrases its as it evolves, siea and ea dont
-                                         es_lambda=es_lambda, 
-                                         es_fitness_iterations=es_fitness_iterations,
-                                        es_generations=es_generations,
-                                        es_semantics_l=0.1,
-                                        es_semantics_u = 0.5,
-                                        name = "SIEA2_MCTS_its" + str(its),
-                                        use_semantics=False,
-                                         logs=True) for its in [iterations, iterations+evolution_iterations]] #modify AWARE
-"""
+                                         logs=True) for its in [iterations]]
+
 agents = agents + [siea_mcts.SIEA_MCTS_Player(max_iterations=its, 
-                                        unpaired_evolution = True, ###########################bewaree
+                                        use_semantics=False,
                                          es_lambda=es_lambda, 
                                          es_fitness_iterations=es_fitness_iterations,
                                         es_generations=es_generations,
                                         es_semantics_l=0.1,
                                         es_semantics_u = 0.5,
-                                        name = "SIEA_MCTSu_its" + str(its),
-                                         logs=True) for its in [iterations, iterations-evolution_iterations]]
+                                        name = "EA_MCTS_its" + str(its),
+                                         logs=True) for its in [iterations]]
 """
 #Run                          
 for function_index in function_indexes:

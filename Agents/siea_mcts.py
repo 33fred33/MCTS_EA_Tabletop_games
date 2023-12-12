@@ -244,131 +244,32 @@ def ES_Search(RootNode, MCTS_Player):
             #node = mcts_player.best_child_by_tree_policy(children = node.children.values(), my_tree_policy_formula = my_tree_policy_formula)
             node = mcts_player.selection(node, my_tree_policy_formula=my_tree_policy_formula, allow_evolution=False)
 
-            #node = mcts_player.expansion(node)
-
-            # play the move of this child node
-            #stateCopy.make_action(node.edge_action)
-            stateCopy = node.state.duplicate()
+            if node.can_be_expanded():
+                node = mcts_player.expansion(node)
             
-            # random rollout
-            while not stateCopy.is_terminal:
-                stateCopy.make_action(mcts_player.default_policy.choose_action(stateCopy))
-                mcts_player.current_fm = mcts_player.current_fm + 1
-                mcts_player.evolution_fm_calls = mcts_player.evolution_fm_calls + 1
-                #stateCopy.make_action()
-                
-            # result
-            reward = stateCopy.reward[mcts_player.player]
+            # simulation
+            previous_fm = mcts_player.current_fm
+            reward = mcts_player.simulation(node, mcts_player.rollouts, mcts_player.default_policy)
+            mcts_player.evolution_fm_calls = mcts_player.evolution_fm_calls + (mcts_player.current_fm - previous_fm)
             results.append(reward)
             
             #Backpropogate
-            while node != None:  # backpropogate from the expected node and work back until reaches root_node
-                node.update(new_reward = reward)
-                node = node.parent
-        
-        # semantics check  
-        individual.semantics = sorted(results)
-        
-        fitness = np.mean(results)
-        
-        return fitness,
-        
-    def evalTreeClone(individual, RootNode, mcts_player): #OK
-        # Transform the tree expression in a callable function
-        func = toolbox.compile(expr=individual)
-        results = []
-
-        #Set mcts clone
-        root_node = RootNode.duplicate()
-        dummy_mcts = vmcts.MCTS_Player(rollouts=1, c=mcts_player.c, max_iterations=0, default_policy=mcts_player.default_policy, name=mcts_player.name + "_dummy", logs = False)
-        dummy_mcts.choose_action(root_node.state)
-        dummy_mcts.set_tree(root_node) 
-
-        #Changes reward, not whole expression
-        def my_tree_policy_formula(node):
-            if node.visits == 0:
-                return np.inf
-            if node.parent.state.player_turn == dummy_mcts.player:
-                return func(node.average_reward(), node.visits, node.parent.visits) 
-            else:
-                return func(-node.average_reward(), node.visits, node.parent.visits)
-
-        for i in range(es_fitness_iterations):
-            
-            node = root_node
-            ##### Selection #####
-            node = dummy_mcts.selection(node, my_tree_policy_formula=my_tree_policy_formula)
-            
-            ##### Expansion #####
-            if node.can_be_expanded():
-                node = dummy_mcts.expansion(node)
-
-            ##### Simulation #####
-            reward = dummy_mcts.simulation(node, 1, dummy_mcts.default_policy) 
-            results.append(reward)
-            
-            ##### Backpropagation #####
-            dummy_mcts.backpropagation(node, reward)
-        
-        #update variables
-        mcts_player.evolution_fm_calls = mcts_player.evolution_fm_calls + dummy_mcts.current_fm
-        mcts_player.current_fm = mcts_player.current_fm + dummy_mcts.current_fm
-
-        # semantics check  
-        individual.semantics = sorted(results)
-        
-        #fitness = eu.best_leaf_node(root_node, criteria="avg_reward").average_reward() #Only works for one player games
-        fitness = np.mean(results)
-        return fitness,
-
-    def evalTreeExpand(individual, RootNode, mcts_player): #OK
-        # Transform the tree expression in a callable function
-        root_node = RootNode
-        func = toolbox.compile(expr=individual)
-        results = []
-
-        #Changes reward, not whole expression
-        def my_tree_policy_formula(node):
-            if node.visits == 0:
-                return np.inf
-            if node.parent.state.player_turn == mcts_player.player:
-                return func(node.average_reward(), node.visits, node.parent.visits) 
-            else:
-                return func(-node.average_reward(), node.visits, node.parent.visits)
-
-        starting_fm = mcts_player.current_fm
-        for i in range(es_fitness_iterations):
-            
-            node = root_node
-            ##### Selection #####
-            node = mcts_player.selection(node, my_tree_policy_formula=my_tree_policy_formula, allow_evolution=False)
-            
-            ##### Expansion #####
-            if node.can_be_expanded():
-                node = mcts_player.expansion(node)
-
-            ##### Simulation #####
-            reward = mcts_player.simulation(node, 1, mcts_player.default_policy) 
-            results.append(reward)
-            
-            ##### Backpropagation #####
+            #while node != None:  # backpropogate from the expected node and work back until reaches root_node
+            #    node.update(new_reward = reward)
+            #    node = node.parent
             mcts_player.backpropagation(node, reward)
-        
-        #update variables
-        mcts_player.evolution_fm_calls = mcts_player.evolution_fm_calls + mcts_player.current_fm - starting_fm
 
+            mcts_player.current_iterations = mcts_player.current_iterations + 1
+        
         # semantics check  
         individual.semantics = sorted(results)
         
-        #fitness = eu.best_leaf_node(root_node, criteria="avg_reward").average_reward() #Only works for one player games
         fitness = np.mean(results)
+        
         return fitness,
 
     # register gp functions
-    if MCTS_Player.unpaired_evolution:
-        toolbox.register("evaluate", evalTreeExpand, RootNode=RootNode, mcts_player=MCTS_Player)
-    else:
-        toolbox.register("evaluate", evalTree, RootNode=RootNode, mcts_player=MCTS_Player)
+    toolbox.register("evaluate", evalTree, RootNode=RootNode, mcts_player=MCTS_Player)
     toolbox.register("select", selBestCustom)
     toolbox.register("mate", gp.cxOnePoint)
     toolbox.register("expr_mut", gp.genFull, min_=1, max_=3)

@@ -43,6 +43,7 @@ class BaseGameState(Protocol):
 
     available_actions: List #List[Action]
     player_turn:int #begins in 0, ends in n_players-1
+    players:int #Number of players
     reward:List[float] #Reward given to each player at any time-step. Default:None. Updated to reflect the reward of the last action
     turn:int #begins in 1
     is_terminal:bool #Default:False. Updated to True when the game is over

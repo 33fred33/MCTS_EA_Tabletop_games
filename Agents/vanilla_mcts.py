@@ -9,6 +9,7 @@ import random as rd
 import time
 import pandas as pd
 import Utilities.logs_management as lm
+from Games.function_optimisation import GameState as FOPGameState
 
 class Node():
 
@@ -359,8 +360,10 @@ class MCTS_Player(BaseAgent):
 
         #State was terminal
         if node.state.is_terminal:
-            #print("Warning: simulation called on terminal node:", str(node.node_data()))
-            #print("multiple_rewards:", node.state.reward[self.player], node.state.reward[self.player], node.state.reward[self.player])
+            if isinstance(node.state, FOPGameState): #as I called a simulation on a terminal FOP state, I need to resample its reward
+                past_state = node.parent.state.duplicate()
+                past_state.make_action(node.edge_action)
+                node.state = past_state
             return node.state.reward[self.player]
 
         #Execute simulations

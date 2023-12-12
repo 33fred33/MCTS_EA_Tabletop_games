@@ -224,7 +224,7 @@ def ES_Search(RootNode, MCTS_Player):
             if appearances == 0:
                 #individual is not valid
                 individual.semantics = [0 for i in range(es_fitness_iterations)]
-                return float(0), #make the worst individual 0 -> might cause errors
+                return float(-99999), #make the worst individual 0 -> might cause errors
         func = toolbox.compile(expr=individual)
         
         # from this point simulate the game 10 times appending the results
@@ -246,30 +246,30 @@ def ES_Search(RootNode, MCTS_Player):
             node = mcts_player.selection(node, my_tree_policy_formula=my_tree_policy_formula, allow_evolution=False)
 
             #Expansion
+            was_expandable = node.can_be_expanded()
             if node.can_be_expanded():
                 node = mcts_player.expansion(node)
 
             #Simulation
-            if node.state.is_terminal:
-                #when state is terminal, reroll reward by cloning parent state again. Useful only for FOP
-                past_state = node.parent.state.duplicate()
-                past_state.make_action(node.edge_action)
-                node.state = past_state
-                reward = mcts_player.simulation(node, mcts_player.rollouts, mcts_player.default_policy)
-                if hasattr(node.state, "losing_reward"):
-                    reward_fitness = node.state.losing_reward
-                else:
-                    reward_fitness = 0
-            else:
-                reward = mcts_player.simulation(node, mcts_player.rollouts, mcts_player.default_policy) 
-                reward_fitness = reward
+            previous_fm = mcts_player.current_fm
+            reward = mcts_player.simulation(node, mcts_player.rollouts, mcts_player.default_policy)
+            mcts_player.evolution_fm_calls = mcts_player.evolution_fm_calls + (mcts_player.current_fm - previous_fm)
+
+            #Penalise reaching the bottom of the tree with the selection step:
+            #if was_expandable:
+            #    if node.state.players > 1:
+            #        reward_fitness = node.state.losing_reward
+            #    else:
+            #        reward_fitness = 0
+            #else:
+            #    reward_fitness = reward
 
             #Backpropagation
             mcts_player.backpropagation(node, reward)
 
             mcts_player.current_iterations = mcts_player.current_iterations + 1
             
-            results.append(reward_fitness)
+            results.append(reward)
         
         # semantics check  
         individual.semantics = sorted(results)
@@ -373,27 +373,30 @@ def eaMuCommaLambdaCustom(MCTS_Player, turn, population, toolbox, mu, lambda_, n
 
         # Evaluate the individuals with an invalid fitness
         #print("Evaluating individuals")
-        current_pop = offspring + population #added population to fitness again the individuals
-        fitnesses = toolbox.map(toolbox.evaluate, current_pop)
+        invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+        fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+        parent_fitness = toolbox.map(toolbox.evaluate, population) #added
         #print("Firnesses: " + str(fitnesses))
         
-        for ind, fit in zip(current_pop, fitnesses):
+        for ind, fit in zip(invalid_ind, fitnesses):
+            ind.fitness.values = fit
+        for ind, fit in zip(population, parent_fitness):
             ind.fitness.values = fit
 
         # Update the hall of fame with the generated individuals
         if halloffame is not None:
-            halloffame.update(current_pop)
+            halloffame.update(population + offspring) #changed
 
         # Select the next generation population
         #print("Selecting next generation, pop size:", str(len(population)), ", offspring size:",str(len(offspring)))
-        population[:] = toolbox.select(current_pop, MCTS_Player, gen, turn)
+        population[:] = toolbox.select(population + offspring, MCTS_Player, gen, turn)
 
         # Update the statistics with the new population
         
         if verbose:
             #print("Updating statistics")
             record = stats.compile(population) if stats is not None else {}
-            logbook.record(gen=gen, nevals=len(current_pop), **record)
+            logbook.record(gen=gen, nevals=len(invalid_ind), **record)
             #print(logbook.stream)
     return population
 

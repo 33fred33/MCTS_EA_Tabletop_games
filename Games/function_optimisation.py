@@ -99,7 +99,7 @@ class GameState(base_games.BaseGameState):
         assert splits == 2, "splits must be == 2"
 
         # assignation
-        self.n_players = n_players
+        self.players = n_players
         self.function_index = function_index
         self.dimensions = dimensions[function_index]
         self.initial_ranges = db_ranges[function_index]
@@ -115,7 +115,7 @@ class GameState(base_games.BaseGameState):
          
     def set_initial_state(self) -> None:
         self.winner = None
-        self.reward = [None for _ in range(self.n_players)]
+        self.reward = [None for _ in range(self.players)]
         self.player_turn = 0
         self.is_terminal = False
         self.turn = 1
@@ -126,7 +126,7 @@ class GameState(base_games.BaseGameState):
         """
         Clones the game state - quicker than using copy.deepcopy()
         """
-        Clone = GameState(n_players=self.n_players, 
+        Clone = GameState(n_players=self.players, 
                         function_index = self.function_index,
                         splits = self.splits, 
                         minimum_step = self.minimum_step, 
@@ -159,12 +159,12 @@ class GameState(base_games.BaseGameState):
          self.is_terminal = True
          p = self.function(self.eval_point())
          if self.for_test: 
-             if self.n_players == 1: self.reward[0] = p #for finding the actual max
+             if self.players == 1: self.reward[0] = p #for finding the actual max
              else:
                     self.reward[0] = p
                     self.reward[1] = 1 - p
          else: 
-             if self.n_players == 1: self.reward[0] = bernoulli.rvs(p)
+             if self.players == 1: self.reward[0] = bernoulli.rvs(p)
              else:
                     evaluation = bernoulli.rvs(p)
                     self.reward[0] = evaluation
@@ -172,7 +172,7 @@ class GameState(base_games.BaseGameState):
          return
       
       #turn end routine
-      if self.n_players == 2:
+      if self.players == 2:
          self.player_turn = 1 - self.player_turn # switch turn
       self.turn = self.turn+ 1  # increment turns
       self._update_available_actions()
@@ -211,7 +211,7 @@ class GameState(base_games.BaseGameState):
             "Minimum_step": self.minimum_step,
             "Max_turns": self.max_turns,
             "For_test": self.for_test,
-            "N_players": self.n_players,
+            "N_players": self.players,
             "Max_location": str(self.max_location),
             "Dimensions": str(self.dimensions),
         }
