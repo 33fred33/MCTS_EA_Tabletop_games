@@ -386,6 +386,8 @@ def eaMuCommaLambdaCustom(MCTS_Player, turn, population, toolbox, mu, lambda_, n
             record = stats.compile(population) if stats is not None else {}
             logbook.record(gen=gen, nevals=len(current_pop), **record)
             #print(logbook.stream)
+        if MCTS_Player.current_iterations >= MCTS_Player.max_iterations:
+            break
     return population
 
 def semanticsDistance(original, new): #OK

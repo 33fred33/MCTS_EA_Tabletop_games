@@ -366,7 +366,7 @@ def evolved_formula_analysis(data):
       output["Std_per_formula_" + terminal] = np.std(all_appareances)
       output["Appearance_rate_" + terminal] = terminal_count/len(data)
 
-   trivial_stuck = 0 #no Q or n
+   trivial_stuck = 0 #n no Q
    trivial_random = 0 #none
    trivial_greedy = 0 #Q no n
    for f in data["evolved_formula"]:
