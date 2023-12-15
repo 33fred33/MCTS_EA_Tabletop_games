@@ -208,7 +208,7 @@ class MCTS_Player(BaseAgent):
         self.current_iterations = 0
         self.current_time = 0
         
-        start_time = time.time()
+        self.start_time = time.time() 
 
         while self.current_fm < self.max_fm and self.current_iterations < self.max_iterations and self.current_time < self.max_time:
             logs_updated = False
@@ -216,7 +216,7 @@ class MCTS_Player(BaseAgent):
 
             #Update criteria
             #self.current_iterations = self.current_iterations + 1
-            self.current_time = time.time() - start_time
+            self.current_time = time.time() - self.start_time
 
             #Check if iterations are still calling fm
             if self.current_fm < self.current_iterations:
@@ -420,6 +420,12 @@ class MCTS_Player(BaseAgent):
     def set_tree(self, node):
         self.root_node = node
         self.nodes_count = len(self.root_node.subtree_nodes())
+
+    def stopping_criteria(self):
+        current_time = time.time() - self.start_time
+        if self.current_fm >= self.max_fm or self.current_iterations >= self.max_iterations or current_time >= self.max_time:
+            return True
+        return False
 
     def view_mcts_tree(self, node=None, depth=0, max_depth = np.inf):
         if node is None:

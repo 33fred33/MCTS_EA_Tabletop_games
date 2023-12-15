@@ -19,12 +19,14 @@ from deap import creator
 from deap import tools
 from deap import gp
 
+#ea and siea dont increase their iterations when they evolve
+
 # want to maximise the solution
 creator.create("FitnessMax", base.Fitness, weights=(1.0,)) #This can be outside
 # define the structure of the programs 
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)  #This can be outside
 
-class SIEA_MCTS_Player2(vmcts.MCTS_Player):
+class SIEA_MCTS_Player(vmcts.MCTS_Player):
 
     def __init__(self, 
                  rollouts=1, 
@@ -33,13 +35,19 @@ class SIEA_MCTS_Player2(vmcts.MCTS_Player):
                  max_time=np.inf, 
                  max_iterations=np.inf, 
                  default_policy = RandomPlayer(), 
-                 name = "REA_MCTS",
-                    use_semantics = False,
+                 name = None,
                     es_lambda = 4,
                     es_fitness_iterations = 30,
-                    es_generations = 20,
-                    es_semantics_l = 5,
-                    es_semantics_u = 10,
+                    es_generations = 20, #only matters if parallel_evolution = False
+                    es_semantics_l = 5, #only matters if use_semantics = True
+                    es_semantics_u = 10, #only matters if use_semantics = True
+                    #variants:
+                    use_semantics = True,
+                    parallel_evolution = False, #-> mitigate feedback loop effect
+                    partial_evolution = False,
+                    no_terminal_no_parent = False,
+                    no_terminal_no_parent_terminals = ["Q","n"],
+                    re_evaluation = False,
                 logs_every_iterations = None,
                  logs = False):
         super().__init__(rollouts = rollouts, c=c, max_fm=max_fm, max_time=max_time, max_iterations=max_iterations, default_policy=default_policy, name=name, logs=logs, logs_every_iterations= logs_every_iterations)
@@ -49,12 +57,24 @@ class SIEA_MCTS_Player2(vmcts.MCTS_Player):
         self.es_semantics_l = es_semantics_l
         self.es_semantics_u = es_semantics_u
         self.use_semantics = use_semantics
+        self.parallel_evolution = parallel_evolution
+        self.partial_evolution = partial_evolution
+        self.no_terminal_no_parent = no_terminal_no_parent
+        self.no_terminal_no_parent_terminals = no_terminal_no_parent_terminals
+        self.re_evaluation = re_evaluation
 
         self.GPTree = None
         self.hasGPTree = False
         self.evolution_logs = pd.DataFrame()
         self.choose_action_logs = pd.DataFrame()
         self.isAIPlayer = True
+
+        if name is None:
+            self.name = "REA_MCTS__"
+            self.name = self.name + "PE_" + str(self.parallel_evolution) + "__"
+            self.name = self.name + "PA_" + str(self.partial_evolution) + "__"
+            self.name = self.name + "NP_" + str(self.no_terminal_no_parent) + "__"
+            self.name = self.name + "RE_" + str(self.re_evaluation)
 
     def choose_action(self, state):
         self.evolution_logs = pd.DataFrame()
@@ -78,6 +98,30 @@ class SIEA_MCTS_Player2(vmcts.MCTS_Player):
             node = super().selection(node, my_tree_policy_formula=my_tree_policy_formula)
         return node
     
+    def iteration(self, node=None):
+
+        if node is None:
+            node = self.root_node
+
+        #Selection
+        node = self.selection(node) #this will always return a decision node
+        
+        if self.parallel_evolution:
+            if self.stopping_criteria():
+                return
+
+        #Expansion
+        if node.can_be_expanded():
+            node = self.expansion(node)
+
+        #Simulation
+        reward = self.simulation(node, self.rollouts, self.default_policy) 
+
+        #Backpropagation
+        self.backpropagation(node, reward)
+
+        self.current_iterations = self.current_iterations + 1
+
     def tree_policy_formula(self, node):
         if not self.hasGPTree:
             return super().tree_policy_formula(node) #UCB1
@@ -212,65 +256,70 @@ def ES_Search(RootNode, MCTS_Player):
 
     def evalTree(individual, RootNode, mcts_player): #OK
         # Transform the tree expression in a callable function
-        #print("Evaluating formula", str(individual))
-        #verify individual  validity
-        f = str(individual)
-        for terminal in ["n","N","Q"]:
-            appearances = f.count(terminal)
-            if terminal == "n":
-                appearances -= f.count("ln")
-            if appearances == 0:
-                #individual is not valid
-                individual.semantics = [0 for i in range(es_fitness_iterations)]
-                return float(0), #make the worst individual 0 -> might cause errors
         func = toolbox.compile(expr=individual)
-        
-        # from this point simulate the game 10 times appending the results
-        results = []
-        for i in range(es_fitness_iterations):
-            # copy the state
-            #stateCopy = RootNode.state.duplicate()
-            node = mcts_player.root_node
-            
-            def my_tree_policy_formula(node):
+        def my_tree_policy_formula(node):
                 if node.visits == 0:
                     return np.inf
                 if node.parent.state.player_turn == mcts_player.player:
                     return func(node.average_reward(), node.visits, node.parent.visits) 
                 else:
-                    return func(-node.average_reward(), node.visits, node.parent.visits)
+                    return -func(node.average_reward(), node.visits, node.parent.visits)
+
+        results = []
+        for i in range(es_fitness_iterations):
+
+            #Stop evolution
+            if mcts_player.stopping_criteria():
+                individual.semantics = sorted(results)
+                return 0,
+
+            node = RootNode
             
-            #node = mcts_player.best_child_by_tree_policy(children = node.children.values(), my_tree_policy_formula = my_tree_policy_formula)
+            #Selection
             node = mcts_player.selection(node, my_tree_policy_formula=my_tree_policy_formula, allow_evolution=False)
 
-            #Expansion
             if node.can_be_expanded():
                 node = mcts_player.expansion(node)
-
-            #Simulation
-            if node.state.is_terminal:
-                #when state is terminal, reroll reward by cloning parent state again. Useful only for FOP
-                past_state = node.parent.state.duplicate()
-                past_state.make_action(node.edge_action)
-                node.state = past_state
-            reward = mcts_player.simulation(node, mcts_player.rollouts, mcts_player.default_policy) 
-
-            #Backpropagation
+            
+            # simulation
+            previous_fm = mcts_player.current_fm
+            reward = mcts_player.simulation(node, mcts_player.rollouts, mcts_player.default_policy)
+            mcts_player.evolution_fm_calls = mcts_player.evolution_fm_calls + (mcts_player.current_fm - previous_fm)
+            results.append(reward)
+            
+            #Backpropogate
             mcts_player.backpropagation(node, reward)
 
             mcts_player.current_iterations = mcts_player.current_iterations + 1
+
+            #PARALLEL EVOLUTION
+            if not mcts_player.stopping_criteria():
+                if mcts_player.parallel_evolution:
+                    node = RootNode
             
-            results.append(reward)
+                    #Selection
+                    node = mcts_player.selection(node, allow_evolution=False) #This selection is normal ucb1
+
+                    if node.can_be_expanded():
+                        node = mcts_player.expansion(node)
+                    
+                    # simulation
+                    previous_fm = mcts_player.current_fm
+                    reward = mcts_player.simulation(node, mcts_player.rollouts, mcts_player.default_policy)
+                    mcts_player.evolution_fm_calls = mcts_player.evolution_fm_calls + (mcts_player.current_fm - previous_fm)
+                    results.append(reward)
+                    
+                    #Backpropogate
+                    mcts_player.backpropagation(node, reward)
+
+                    mcts_player.current_iterations = mcts_player.current_iterations + 1
         
         # semantics check  
         individual.semantics = sorted(results)
         
         fitness = np.mean(results)
-        #if fitness == 1:
-        #  print("Fitness is 1 for formula: " + str(individual))
         
         return fitness,
-
 
     # register gp functions
     toolbox.register("evaluate", evalTree, RootNode=RootNode, mcts_player=MCTS_Player)
@@ -356,7 +405,9 @@ def eaMuCommaLambdaCustom(MCTS_Player, turn, population, toolbox, mu, lambda_, n
         print(logbook.stream)
 
     # Begin the generational process
-    for gen in range(1, ngen + 1):
+    gen = 1
+    while not MCTS_Player.stopping_criteria():
+        gen += 1
         #print("In generation: " + str(gen) + " of " + str(ngen) + "...")
         # Vary the population
         #print("Generating offsprings")
@@ -364,30 +415,37 @@ def eaMuCommaLambdaCustom(MCTS_Player, turn, population, toolbox, mu, lambda_, n
 
         # Evaluate the individuals with an invalid fitness
         #print("Evaluating individuals")
-        current_pop = offspring + population #added population to fitness again the individuals
-        fitnesses = toolbox.map(toolbox.evaluate, current_pop)
-        #print("Firnesses: " + str(fitnesses))
+        invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+        if MCTS_Player.re_evaluation: 
+            invalid_ind = invalid_ind + population #adds the parent to be evaluated again
+        fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+        #print("Fitnesses: " + str(list(fitnesses)))
         
-        for ind, fit in zip(current_pop, fitnesses):
+        for ind, fit in zip(invalid_ind, fitnesses):
             ind.fitness.values = fit
 
         # Update the hall of fame with the generated individuals
         if halloffame is not None:
-            halloffame.update(current_pop)
+            if MCTS_Player.re_evaluation:
+                halloffame.update(population + offspring)
+            else: halloffame.update(offspring)
+
 
         # Select the next generation population
         #print("Selecting next generation, pop size:", str(len(population)), ", offspring size:",str(len(offspring)))
-        population[:] = toolbox.select(current_pop, MCTS_Player, gen, turn)
+        population[:] = toolbox.select(population + offspring, MCTS_Player, gen, turn) #MU PLUS LAMBDA
 
         # Update the statistics with the new population
         
         if verbose:
             #print("Updating statistics")
             record = stats.compile(population) if stats is not None else {}
-            logbook.record(gen=gen, nevals=len(current_pop), **record)
+            logbook.record(gen=gen, nevals=len(invalid_ind), **record)
             #print(logbook.stream)
-        if MCTS_Player.current_iterations >= MCTS_Player.max_iterations:
+        
+        if not MCTS_Player.parallel_evolution and gen == ngen+1:
             break
+
     return population
 
 def semanticsDistance(original, new): #OK
@@ -412,11 +470,24 @@ def selBestCustom(individuals, MCTS_Player, generation, turn, fit_attr="fitness"
     for i in individuals:
         Nodes += len(i)  # number of nodes in each individual
         # SSD between each new individual and sole parent
-        distance = round(semanticsDistance(individuals[0], i), 3)
+        if len(i.semantics) == len(individuals[0].semantics):  
+            distance = round(semanticsDistance(individuals[0], i), 3)
+        else: distance = np.inf
         i.SD = distance
         SSD += distance
         TotalDepth += i.height
         # append to lists
+        if MCTS_Player.no_terminal_no_parent:
+            f = str(i)
+            for terminal in MCTS_Player.no_terminal_no_parent_terminals:
+                appearances = f.count(terminal) ##ATTENTION: the terminals are found on the strings, might require particular ways to find them (like "n" mixed with the operand ln)
+                if terminal == "n":
+                    appearances -= f.count("ln")
+                if appearances == 0:
+                    #individual is not valid
+                    i.fitness.values = -99999,
+                    break
+
         fitnesses_list.append(i.fitness.values)
         SSD_list.append(distance)
         
@@ -435,6 +506,7 @@ def selBestCustom(individuals, MCTS_Player, generation, turn, fit_attr="fitness"
         # sorted by fitness
         ind_sorted = sorted(individuals, key=attrgetter("fitness"), reverse=True)
         to_return = ind_sorted[:1]
+    
 
     #Update evolution file
     data = {'generation':generation, 
