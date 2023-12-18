@@ -14,13 +14,14 @@ import Agents.random as arand
 import Agents.vanilla_mcts as mcts 
 import Agents.siea_mcts as siea_mcts
 import Agents.siea_mcts2 as siea_mcts2
+import Agents.rea_mcts as rea_mcts
 import Games.function_optimisation as fo
 import Utilities.logs_management as lm
 
 start_time = time.time()
 
 #FOP experiment
-logs_path = os.path.join("Outputs","FOP")
+logs_path = os.path.join("Outputs","FOP_c6_v2")
 random_seed = 1234
 np.random.seed(random_seed)
 rd.seed(random_seed)
@@ -47,7 +48,7 @@ agents = [mcts.MCTS_Player(max_iterations=iterations,
                            c=c, 
                            name = "MCTS_c" + c_names[i]) for i,c in enumerate(c_list)]
 
-"""
+
 agents = agents + [siea_mcts2.SIEA_MCTS_Player2(max_iterations=its,
                                          es_lambda=es_lambda, 
                                          es_fitness_iterations=es_fitness_iterations,
@@ -55,7 +56,7 @@ agents = agents + [siea_mcts2.SIEA_MCTS_Player2(max_iterations=its,
                                         name = "SIEA2_MCTS_discard",
                                         use_semantics=False,
                                          logs=True) for its in [iterations]]
-"""
+
 agents = agents + [siea_mcts.SIEA_MCTS_Player(max_iterations=its,
                                               use_semantics=True,
                                          es_lambda=es_lambda, 
@@ -76,6 +77,23 @@ agents = agents + [siea_mcts.SIEA_MCTS_Player(max_iterations=its,
                                         name = "EA_MCTS_its" + str(its),
                                          logs=True) for its in [iterations]]
 """
+
+for re_evaluation in [True, False]:
+    for no_terminal_no_parent in [True, False]:
+        for parallel_evolution in [True, False]:
+            agents = agents + [rea_mcts.SIEA_MCTS_Player(max_iterations=its,
+                                                        re_evaluation=re_evaluation,
+                                                        no_terminal_no_parent=no_terminal_no_parent,
+                                                        parallel_evolution=parallel_evolution,
+                                                        use_semantics=False,
+                                                        es_lambda=es_lambda, 
+                                                        es_fitness_iterations=es_fitness_iterations,
+                                                        es_generations=es_generations,
+                                                        es_semantics_l=0.1,
+                                                        es_semantics_u = 0.5,
+                                                        #name = "REA_MCTS_its" + str(its) + "_re_evaluation" + str(re_evaluation) + "_no_terminal_no_parent" + str(no_terminal_no_parent) + "_parallel_evolution" + str(parallel_evolution),
+                                                        logs=True) for its in [iterations]]
+            
 #Run                          
 for function_index in function_indexes:
     print("In function " + str(function_index))

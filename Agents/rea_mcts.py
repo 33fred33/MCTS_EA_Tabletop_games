@@ -26,6 +26,28 @@ creator.create("FitnessMax", base.Fitness, weights=(1.0,)) #This can be outside
 # define the structure of the programs 
 creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)  #This can be outside
 
+#create dummy trees. The first child should be preferred
+dummy_action_names = ["I should win", "I should lose"]
+class DummyState:
+    def __init__(self, player_turn=None):
+        self.player_turn = player_turn
+        self.is_terminal = False
+dummystate = DummyState()
+dummy_root_node1 = vmcts.Node(parent = None, state=dummystate, expansion_index=0)
+child1 = dummy_root_node1.add_child(edge_content=dummy_action_names[0], state=None, expansion_index=1)
+child1.update(new_reward=1)
+child2 = dummy_root_node1.add_child(edge_content=dummy_action_names[1], state=None, expansion_index=2)
+child2.update(new_reward=0)
+
+dummy_root_node2 = vmcts.Node(parent = None, state=dummystate, expansion_index=0)
+child1 = dummy_root_node2.add_child(edge_content=dummy_action_names[0], state=None, expansion_index=1)
+child1.update(new_reward=0)
+child2 = dummy_root_node2.add_child(edge_content=dummy_action_names[1], state=None, expansion_index=2)
+child2.update(new_reward=0)
+child2.update(new_reward=0)
+
+test_trees = [dummy_root_node1, dummy_root_node2]
+
 class SIEA_MCTS_Player(vmcts.MCTS_Player):
 
     def __init__(self, 
@@ -44,7 +66,7 @@ class SIEA_MCTS_Player(vmcts.MCTS_Player):
                     #variants:
                     use_semantics = True,
                     parallel_evolution = False, #-> mitigate feedback loop effect
-                    partial_evolution = False,
+                    #partial_evolution = False,
                     no_terminal_no_parent = False,
                     no_terminal_no_parent_terminals = ["Q","n"],
                     re_evaluation = False,
@@ -58,7 +80,7 @@ class SIEA_MCTS_Player(vmcts.MCTS_Player):
         self.es_semantics_u = es_semantics_u
         self.use_semantics = use_semantics
         self.parallel_evolution = parallel_evolution
-        self.partial_evolution = partial_evolution
+        #self.partial_evolution = partial_evolution
         self.no_terminal_no_parent = no_terminal_no_parent
         self.no_terminal_no_parent_terminals = no_terminal_no_parent_terminals
         self.re_evaluation = re_evaluation
@@ -72,7 +94,7 @@ class SIEA_MCTS_Player(vmcts.MCTS_Player):
         if name is None:
             self.name = "REA_MCTS__"
             self.name = self.name + "PE_" + str(self.parallel_evolution) + "__"
-            self.name = self.name + "PA_" + str(self.partial_evolution) + "__"
+            #self.name = self.name + "PA_" + str(self.partial_evolution) + "__"
             self.name = self.name + "NP_" + str(self.no_terminal_no_parent) + "__"
             self.name = self.name + "RE_" + str(self.re_evaluation)
 
@@ -147,6 +169,10 @@ class SIEA_MCTS_Player(vmcts.MCTS_Player):
             "es_semantics_l":self.es_semantics_l,
             "es_semantics_u":self.es_semantics_u,
             "use_semantics":self.use_semantics,
+            "parallel_evolution":self.parallel_evolution,
+            "no_terminal_no_parent":self.no_terminal_no_parent,
+            "no_terminal_no_parent_terminals":str(self.no_terminal_no_parent_terminals),
+            "re_evaluation":self.re_evaluation,
         }
         data_df = pd.DataFrame(data_dict, index=[0])
         return pd.concat([agent_data, data_df], axis=1)
@@ -167,7 +193,14 @@ class SIEA_MCTS_Player(vmcts.MCTS_Player):
             evolution_data["avg_average_depth"] = st.mean(self.evolution_logs["average_depth"])
             evolution_data["std_average_depth"] = st.stdev(self.evolution_logs["average_depth"])
             evolution_data["avg_average_SSD"] = st.mean(self.evolution_logs["average_SSD"])
-            evolution_data["std_average_SSD"] = st.stdev(self.evolution_logs["average_SSD"])
+            valid_ssds = True
+            for ssd in self.evolution_logs["average_SSD"]:
+                if ssd == np.inf or ssd == -np.inf:
+                    evolution_data["avg_average_SSD"] = np.inf
+                    valid_ssds = False
+                    break
+            if valid_ssds:
+                evolution_data["std_average_SSD"] = st.stdev(self.evolution_logs["average_SSD"]) if len(self.evolution_logs["average_SSD"]) > 1 else None
             collected_fitnesses = []
             for c in self.evolution_logs.columns:
                 if "fitness_individual" in c:
@@ -257,6 +290,7 @@ def ES_Search(RootNode, MCTS_Player):
     def evalTree(individual, RootNode, mcts_player): #OK
         # Transform the tree expression in a callable function
         func = toolbox.compile(expr=individual)
+
         def my_tree_policy_formula(node):
                 if node.visits == 0:
                     return np.inf
@@ -264,6 +298,27 @@ def ES_Search(RootNode, MCTS_Player):
                     return func(node.average_reward(), node.visits, node.parent.visits) 
                 else:
                     return -func(node.average_reward(), node.visits, node.parent.visits)
+                
+        if MCTS_Player.no_terminal_no_parent: #test if formula does the bare minimum to be valid
+            #f = str(i)
+            #for terminal in MCTS_Player.no_terminal_no_parent_terminals:
+            #    appearances = f.count(terminal) ##ATTENTION: the terminals are found on the strings, might require particular ways to find them (like "n" mixed with the operand ln)
+            #    if terminal == "n":
+            #        appearances -= f.count("ln")
+            #    if appearances == 0:
+            #        #individual is not valid
+            #        i.fitness.values = -99999,
+            #        break
+            for test_tree in test_trees:
+                dummy_values = {ea:None for ea in dummy_action_names}
+                test_tree.state.player_turn = RootNode.state.player_turn
+                for edge_action in dummy_action_names:
+                    #test_tree.children[edge_action].state.player_turn = RootNode.state.player_turn
+                    dummy_values[edge_action] = my_tree_policy_formula(test_tree.children[edge_action])
+                if dummy_values[dummy_action_names[0]] <= dummy_values[dummy_action_names[1]]:
+                    #individual is not valid
+                    individual.semantics = [None]
+                    return -99999,
 
         results = []
         for i in range(es_fitness_iterations):
@@ -366,7 +421,7 @@ def ES_Search(RootNode, MCTS_Player):
         formula = str(hof[0])
         
         # append data to csv
-        data = {'evolved_formula_not_ucb1':(UCT_GP_Tree != hof[0]), 
+        data = {'evolved_formula_not_ucb1':(UCT_GP_Tree != hof[0]),
                 'evolved_formula': formula, 
                 'evolved_formula_nodes':len(hof[0]), 
                 'evolved_formula_depth': (hof[0]).height,
@@ -477,16 +532,7 @@ def selBestCustom(individuals, MCTS_Player, generation, turn, fit_attr="fitness"
         SSD += distance
         TotalDepth += i.height
         # append to lists
-        if MCTS_Player.no_terminal_no_parent:
-            f = str(i)
-            for terminal in MCTS_Player.no_terminal_no_parent_terminals:
-                appearances = f.count(terminal) ##ATTENTION: the terminals are found on the strings, might require particular ways to find them (like "n" mixed with the operand ln)
-                if terminal == "n":
-                    appearances -= f.count("ln")
-                if appearances == 0:
-                    #individual is not valid
-                    i.fitness.values = -99999,
-                    break
+        
 
         fitnesses_list.append(i.fitness.values)
         SSD_list.append(distance)
