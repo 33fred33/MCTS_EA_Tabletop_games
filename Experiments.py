@@ -21,7 +21,7 @@ import Utilities.logs_management as lm
 start_time = time.time()
 
 #FOP experiment
-logs_path = os.path.join("Outputs","FOP_c6_v2")
+logs_path = os.path.join("Outputs","FOP_c6_v3_semantics")
 random_seed = 1234
 np.random.seed(random_seed)
 rd.seed(random_seed)
@@ -85,7 +85,7 @@ for re_evaluation in [True, False]:
                                                         re_evaluation=re_evaluation,
                                                         no_terminal_no_parent=no_terminal_no_parent,
                                                         parallel_evolution=parallel_evolution,
-                                                        use_semantics=False,
+                                                        use_semantics=True,
                                                         es_lambda=es_lambda, 
                                                         es_fitness_iterations=es_fitness_iterations,
                                                         es_generations=es_generations,

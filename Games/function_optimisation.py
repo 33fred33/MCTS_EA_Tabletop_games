@@ -96,7 +96,7 @@ class GameState(base_games.BaseGameState):
         assert n_players in [1,2], "n_players must be 1 or 2"
         assert function_index in range(len(function_list)), "function_index must be in range(len(function_list))"
         assert splits >= 2, "splits must be >= 2"
-        assert splits == 2, "splits must be == 2"
+        #assert splits == 2, "splits must be == 2"
 
         # assignation
         self.players = n_players

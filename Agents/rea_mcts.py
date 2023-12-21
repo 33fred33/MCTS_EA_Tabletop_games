@@ -36,15 +36,20 @@ dummystate = DummyState()
 dummy_root_node1 = vmcts.Node(parent = None, state=dummystate, expansion_index=0)
 child1 = dummy_root_node1.add_child(edge_content=dummy_action_names[0], state=None, expansion_index=1)
 child1.update(new_reward=1)
+dummy_root_node1.update(new_reward=1)
 child2 = dummy_root_node1.add_child(edge_content=dummy_action_names[1], state=None, expansion_index=2)
 child2.update(new_reward=0)
+dummy_root_node1.update(new_reward=0)
 
 dummy_root_node2 = vmcts.Node(parent = None, state=dummystate, expansion_index=0)
 child1 = dummy_root_node2.add_child(edge_content=dummy_action_names[0], state=None, expansion_index=1)
 child1.update(new_reward=0)
+dummy_root_node2.update(new_reward=0)
 child2 = dummy_root_node2.add_child(edge_content=dummy_action_names[1], state=None, expansion_index=2)
 child2.update(new_reward=0)
+dummy_root_node2.update(new_reward=0)
 child2.update(new_reward=0)
+dummy_root_node2.update(new_reward=0)
 
 test_trees = [dummy_root_node1, dummy_root_node2]
 
@@ -297,28 +302,7 @@ def ES_Search(RootNode, MCTS_Player):
                 if node.parent.state.player_turn == mcts_player.player:
                     return func(node.average_reward(), node.visits, node.parent.visits) 
                 else:
-                    return -func(node.average_reward(), node.visits, node.parent.visits)
-                
-        if MCTS_Player.no_terminal_no_parent: #test if formula does the bare minimum to be valid
-            #f = str(i)
-            #for terminal in MCTS_Player.no_terminal_no_parent_terminals:
-            #    appearances = f.count(terminal) ##ATTENTION: the terminals are found on the strings, might require particular ways to find them (like "n" mixed with the operand ln)
-            #    if terminal == "n":
-            #        appearances -= f.count("ln")
-            #    if appearances == 0:
-            #        #individual is not valid
-            #        i.fitness.values = -99999,
-            #        break
-            for test_tree in test_trees:
-                dummy_values = {ea:None for ea in dummy_action_names}
-                test_tree.state.player_turn = RootNode.state.player_turn
-                for edge_action in dummy_action_names:
-                    #test_tree.children[edge_action].state.player_turn = RootNode.state.player_turn
-                    dummy_values[edge_action] = my_tree_policy_formula(test_tree.children[edge_action])
-                if dummy_values[dummy_action_names[0]] <= dummy_values[dummy_action_names[1]]:
-                    #individual is not valid
-                    individual.semantics = [None]
-                    return -99999,
+                    return func(-node.average_reward(), node.visits, node.parent.visits)
 
         results = []
         for i in range(es_fitness_iterations):
@@ -466,7 +450,7 @@ def eaMuCommaLambdaCustom(MCTS_Player, turn, population, toolbox, mu, lambda_, n
         #print("In generation: " + str(gen) + " of " + str(ngen) + "...")
         # Vary the population
         #print("Generating offsprings")
-        offspring = varOr(population, toolbox, lambda_, cxpb, mutpb, pset)
+        offspring = varOr(population, toolbox, lambda_, cxpb, mutpb, pset, MCTS_Player)
 
         # Evaluate the individuals with an invalid fitness
         #print("Evaluating individuals")
@@ -603,7 +587,7 @@ def SemanticsDecider(fitnesses_list, SSD_list, MCTS_Player, turn, generation, L,
     #print(f'(ES Semantics) Best Index: {bestIndex}')
     return bestIndex, isRandom
         
-def varOr(population, toolbox, lambda_, cxpb, mutpb, pset): #OK
+def varOr(population, toolbox, lambda_, cxpb, mutpb, pset, MCTS_Player): #OK
     """
     Part of an evolutionary algorithm applying only the variation part
     (crossover, mutation **or** reproduction). The modified individuals have
@@ -620,11 +604,61 @@ def varOr(population, toolbox, lambda_, cxpb, mutpb, pset): #OK
         pset.terminals[object][3] = gp.Terminal(randomC(), True, object)
         pset.renameArguments(ARG3='c')
         
-        ind = toolbox.clone(rd.choice(population))
-        ind, = toolbox.mutate(ind)
+        
+        #ind, = toolbox.mutate(ind)
         # make sure it's a new program less than or equal to depth 8
-        while((ind == population[0]) or (ind.height > 8) ):
+        
+        #while((ind == population[0]) or (ind.height > 8) ):
+        #    ind, = toolbox.mutate(ind)
+
+        offspring_not_valid = True
+        not_valid_count = 0
+        while offspring_not_valid:
+            not_valid_count += 1
+            continue_loop = False
+
+            #generate offspring
+            ind = toolbox.clone(rd.choice(population))
             ind, = toolbox.mutate(ind)
+
+            #check validity
+            if ind.height > 8:
+                continue_loop = True
+            if ind == population[0]:
+                continue_loop = True
+
+            if MCTS_Player.no_terminal_no_parent: #perform this test only if no_terminal_no_parent is true
+                func = toolbox.compile(expr=ind)
+
+                def my_tree_policy_formula(node):
+                    if node.visits == 0:
+                        return np.inf
+                    if node.parent.state.player_turn == MCTS_Player.player:
+                        return func(node.average_reward(), node.visits, node.parent.visits) 
+                    else:
+                        return func(-node.average_reward(), node.visits, node.parent.visits)
+                
+                for test_tree in test_trees:
+                    dummy_values = {ea:None for ea in dummy_action_names}
+                    test_tree.state.player_turn = MCTS_Player.root_node.state.player_turn
+                    for edge_action in dummy_action_names:
+                        #test_tree.children[edge_action].state.player_turn = RootNode.state.player_turn
+                        dummy_values[edge_action] = my_tree_policy_formula(test_tree.children[edge_action])
+                    if dummy_values[dummy_action_names[0]] <= dummy_values[dummy_action_names[1]]:
+                        #individual is not valid
+                        continue_loop = True
+
+            #if we reach this point, the individual is valid
+            if not continue_loop:
+                offspring_not_valid = False
+
+            #check if we are stuck in an infinite loop
+            if not_valid_count > 1000:
+                print("Over 1000 invalid individuals generated")
+                break
+        #if not_valid_count > 2:
+        #    print("Generated offspring in " + str(not_valid_count) + " tries")
+    
         del ind.fitness.values
         offspring.append(ind)
         
@@ -671,4 +705,27 @@ def mutUniformCustom(individual, expr, pset): #OK
 
 
 
+"""
+if MCTS_Player.no_terminal_no_parent: #test if formula does the bare minimum to be valid
+            #f = str(i)
+            #for terminal in MCTS_Player.no_terminal_no_parent_terminals:
+            #    appearances = f.count(terminal) ##ATTENTION: the terminals are found on the strings, might require particular ways to find them (like "n" mixed with the operand ln)
+            #    if terminal == "n":
+            #        appearances -= f.count("ln")
+            #    if appearances == 0:
+            #        #individual is not valid
+            #        i.fitness.values = -99999,
+            #        break
+            for test_tree in test_trees:
+                dummy_values = {ea:None for ea in dummy_action_names}
+                test_tree.state.player_turn = RootNode.state.player_turn
+                for edge_action in dummy_action_names:
+                    #test_tree.children[edge_action].state.player_turn = RootNode.state.player_turn
+                    dummy_values[edge_action] = my_tree_policy_formula(test_tree.children[edge_action])
+                if dummy_values[dummy_action_names[0]] <= dummy_values[dummy_action_names[1]]:
+                    #individual is not valid
+                    individual.semantics = [None]
+                    return -99999,
 
+
+"""

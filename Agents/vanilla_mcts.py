@@ -164,7 +164,7 @@ class Node():
         if other is None:
             #print("Warning: comparing node to None")
             return False
-        return other.state == self.state
+        return other.state == self.state and self.expansion_index == other.expansion_index
 
     def __hash__(self):
         return hash((self.state))
