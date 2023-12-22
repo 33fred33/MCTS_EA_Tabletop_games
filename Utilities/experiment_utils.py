@@ -924,15 +924,17 @@ def fo_tree_histogram(data_list, function, title, divisions, n_buckets = 100, su
 
     return fig
 
-def fo_tree_histogram_average(data_list, function, title, divisions, n_buckets = 100, subplot_titles=None, max_x_location = None, y_ref_value = None, height = 1000, width = 800, extra_bottom_margin = 0, legend_y = -0.075):
+def fo_tree_histogram_average(data_list, function, title, divisions, n_buckets = 100, subplot_titles=None, max_x_location = None, y_ref_value = None, height = 1000, width = 800, extra_bottom_margin = 0, legend_y = -0.075, divnames = None, div_legend_name = "Percentage of the total iterations", min_x_location = None, chunks = None):
     """
     Returns a figure with histogram for each agent
     Input: Array of dataframes, one for each agent.
     """
 
-    if divisions in [2,3]: 
-        colors = ["#5B8C5A" ,"#56638A" , "#EC7316"]
+    if divisions == 3: 
+        #colors = ["#5B8C5A" ,"#56638A" , "#EC7316"]
         colors = ['#8cae8b', '#667295', '#8d450d']
+    if divisions == 2: 
+        colors = ['#8cae8b', '#8d450d']
     n_plots = len(data_list)
     if n_plots > 5: 
         even_spaces = 1/(n_plots+1)
@@ -974,8 +976,22 @@ def fo_tree_histogram_average(data_list, function, title, divisions, n_buckets =
             else: s1 = "{:2.1f}".format(100*(div/divisions))
             if (div+1)%divisions == 0: s2 = "{:2.0f}".format(100*((div+1)/divisions))
             else: s2 = "{:2.1f}".format(100*((div+1)/divisions))
-            div_name = s1 + "% to " + s2 + "%"
-            temp_data = data.loc[data["id_block"]==div]
+            if divnames is None:
+                div_name = s1 + "% to " + s2 + "%"
+            else:
+                div_name = divnames[div]
+
+            #temp_data = data.loc[data["id_block"]==div] #old
+            if chunks is None:
+                max_overall_id = data["id"].max()
+                div_min_id = int(div*max_overall_id/divisions)
+                div_max_id = int((div+1)*max_overall_id/divisions)
+                temp_data = data.loc[(data["id"]>=div_min_id) & (data["id"]<div_max_id)]
+            else:
+                div_min_id = chunks[div]
+                div_max_id = chunks[div+1]
+                temp_data = data.loc[(data["id"]>=div_min_id) & (data["id"]<div_max_id)]
+            #print(len(temp_data))
             
             #Set number of buckets as per arguments
             if type(n_buckets) is list:
@@ -1010,7 +1026,7 @@ def fo_tree_histogram_average(data_list, function, title, divisions, n_buckets =
                         ,barmode='stack'
                         ,font = dict(family = "Arial", size = 14, color = "black")
                         ,legend=dict(
-                            title = "Percentage of the total iterations"
+                            title = div_legend_name
                             ,orientation="h"
                             ,yanchor="top"
                             ,y=legend_y
@@ -1051,6 +1067,12 @@ def fo_tree_histogram_average(data_list, function, title, divisions, n_buckets =
             list_of_shapes.append({'type': 'line','y0':0,'y1': 1,'x0':max_x_location, 
                                         'x1':max_x_location,'xref':"x",'yref':yref,
                                         'line': {'color': "#B10909",'width': 1.5, "dash":"dash"}})
+    if min_x_location is not None:
+        for subplot_n in range(1,n_plots+2):
+            yref = "y" + str(subplot_n*2)
+            list_of_shapes.append({'type': 'line','y0':0,'y1': 1,'x0':min_x_location, 
+                                        'x1':min_x_location,'xref':"x",'yref':yref,
+                                        'line': {'color': "#4F5D2F",'width': 1.5, "dash":"dash"}})
     
     if y_ref_value is not None:
             for subplot_n in range(1,n_plots+1):
