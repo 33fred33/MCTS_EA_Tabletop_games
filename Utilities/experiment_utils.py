@@ -155,9 +155,9 @@ class GamePlayer():
             random_seed = rd.randint(0, 2**32)
             rd.seed(random_seed)
             np.random.seed(random_seed)
-        #seeds = rd.sample(range(0, 2**32), n_games)
-        first_seed = rd.randint(0, 2**32)
-        seeds = [first_seed + i for i in range(n_games)]
+        seeds = rd.sample(range(0, 2**32), n_games)
+        #first_seed = rd.randint(0, 2**32)
+        #seeds = [first_seed + i for i in range(n_games)]
         for i in range(n_games):
             if verbose: print("Playing game " + str(i+1) + " of " + str(n_games) + ", agents: " + str([a.name for a in self.players]) + ", with seed " + str(seeds[i]))
             self.play_game(random_seed = seeds[i], logs = logs, verbose = verbose)

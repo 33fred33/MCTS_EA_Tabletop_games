@@ -166,7 +166,7 @@ def run_experiment(parser):
         print("Running game", str(game_idx+1), "of", str(parser.games))
         gameplayer = eu.GamePlayer(game_state, players)
         gameplayer.play_games(n_games=parser.runs, 
-                            random_seed=parser.seed,
+                            random_seed=parser.seed + game_idx,
                             logs=True,
                             logs_path=os.path.join(this_file_path, "Game_" + str(game_idx+1)))
 
@@ -177,7 +177,7 @@ def run_experiment(parser):
 
 if __name__ == "__main__":
     datetime_string = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    default_file_path = os.path.join("Outputs","Carcassonne_1p", "FINAL_1000",  datetime_string)  ##DONT FORGET TO CHANGE THIS
+    default_file_path = os.path.join("Outputs","Carcassonne_1p", "FINAL_10000",  datetime_string)  ##DONT FORGET TO CHANGE THIS
     es_lambda = 4
     es_fitness_iterations = 30
     es_generations = 20
