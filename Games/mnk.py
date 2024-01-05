@@ -44,7 +44,7 @@ class GameState(base_games.BaseGameState):
                  losing_reward=-1,
                  draw_reward=0,
                  winning_reward=1,
-                 name=None):
+                 name=None, players=2):
         assert m >= 3, "m must be >= 3"
         assert n >= 3, "n must be >= 3"
         assert k >= 3 and (k <= m or k <= n), "k must be >= 3 and < m or n"
@@ -62,6 +62,8 @@ class GameState(base_games.BaseGameState):
         self.losing_reward = losing_reward
         self.draw_reward = draw_reward
         self.winning_reward = winning_reward
+        self.players = players
+        self.random_events = []
 
     def set_initial_state(self):
         
@@ -199,6 +201,7 @@ class GameState(base_games.BaseGameState):
         the_duplicate.available_actions = [a for a in self.available_actions]
         the_duplicate.board = {c:v for c,v in self.board.items()}
         the_duplicate.board_connections=self.board_connections
+        the_duplicate.players = self.players
         return the_duplicate
 
     def feature_vector(self):

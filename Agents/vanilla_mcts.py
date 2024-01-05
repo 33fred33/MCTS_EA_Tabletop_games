@@ -208,7 +208,8 @@ class MCTS_Player(BaseAgent):
         self.current_iterations = 0
         self.current_time = 0
         
-        self.start_time = time.time() 
+        self.start_time = time.time()
+        logs_updated = False 
 
         while self.current_fm < self.max_fm and self.current_iterations < self.max_iterations and self.current_time < self.max_time:
             logs_updated = False
@@ -238,7 +239,7 @@ class MCTS_Player(BaseAgent):
             to_return = rd.choice(self.root_node.state.available_actions)
         
         #Update logs
-        if self.logs and not logs_updated:
+        if self.logs and not logs_updated and self.current_fm > 0:
             self._update_choose_action_logs()
             self.choose_action_logs["chosen_action"] = [to_return]
 
@@ -486,10 +487,10 @@ class MCTS_Player(BaseAgent):
 
     def _update_choose_action_logs(self):
         lnd = self.root_node.leaf_node_depths()
-        max_visits_node = max(self.root_node.children.values(), key= lambda x: x.visits)
-        max_visits_action = max_visits_node.edge_action
-        max_reward_node = max(self.root_node.children.values(), key= lambda x: x.average_reward())
-        max_reward_action = max_reward_node.edge_action
+        max_visits_node = max(self.root_node.children.values(), key= lambda x: x.visits) if len(self.root_node.children) > 0 else None
+        max_visits_action = max_visits_node.edge_action if max_visits_node is not None else None
+        max_reward_node = max(self.root_node.children.values(), key= lambda x: x.average_reward()) if len(self.root_node.children) > 0 else None
+        max_reward_action = max_reward_node.edge_action if max_reward_node is not None else None
         data_dict = {
             "forward_model_calls": self.current_fm,
             "current_time": self.current_time,
@@ -504,11 +505,11 @@ class MCTS_Player(BaseAgent):
             "std_leaf_node_depth": np.std(lnd) if len(lnd) > 1 else np.nan,
             "leaf_node_count": len(lnd),
             "max_visits_action": str(max_visits_action),
-            "max_visits_node": str(max_visits_node),
-            "max_visits": max_visits_node.visits,
+            "max_visits_node": str(max_visits_node) if max_visits_node is not None else np.nan,
+            "max_visits": max_visits_node.visits if max_visits_node is not None else np.nan,
             "max_reward_action": str(max_reward_action),
-            "max_reward": max_reward_node.average_reward(),
-            "max_reward_node": str(max_reward_node),
+            "max_reward": max_reward_node.average_reward() if max_reward_node is not None else np.nan,
+            "max_reward_node": str(max_reward_node) if max_reward_node is not None else np.nan,
         }
 
         for i,c in enumerate(self.root_node.children.values()):

@@ -48,6 +48,8 @@ class CarcassonneState:
         self.initial_tile_quantities = initial_tile_quantities
         self.initial_meeples = initial_meeples 
         self.set_tile_sequence = set_tile_sequence #has random events or tiles are calculated at first
+        if self.set_tile_sequence and set_tile_sequence_seed is None:
+            print("WARNING: If set_tile_sequence is True, set_tile_sequence_seed must be an integer")
         self.set_tile_sequence_seed = set_tile_sequence_seed #seed for initial tile sequence
         self.players = players
 
@@ -696,7 +698,24 @@ class CarcassonneState:
                 assert enforced_outcome in self.deck, "Enforced outcome is not a valid tile index, tile not in deck"
                 random_tile = enforced_outcome
                 self.available_actions = self.availableMoves(TileIndexOther = random_tile)
-                assert self.available_actions != [], "Enforced outcome is not a valid tile index, no actions available"
+                #assert self.available_actions != [], "Enforced outcome is not a valid tile index, no actions available"
+                while self.available_actions == []:
+                    # remove from deck the tile because it has no actions
+                    print("WARNING: Enforced outcome ", random_tile ," has no actions, removing from deck")
+                    self.deck.remove(random_tile) 
+                    self.TileQuantities[random_tile] -= 1
+                    self.TotalTiles -= 1
+                    self.TileIndexList.remove(random_tile) 
+
+                    #gent new random tile
+                    if len(self.deck) > 0:
+                        random_tile = rd.choice(self.deck)
+                        self.available_actions = self.availableMoves(TileIndexOther = random_tile)
+                    else:
+                        print("WARNING: No more tiles in deck after burning a tile, ending game")
+                        self.EndGameRoutine()
+                        break
+
         else:
             raise ValueError("Unknown event type: "+str(event_type))
         
@@ -706,6 +725,13 @@ class CarcassonneState:
         self.next_tile_index = random_tile
         
         return random_event
+
+    def random_event_probabilities(self, event_type = "Draw random tile"):
+        """Returns a list of probabilities of all possible random events, regardless of current outcome"""
+        tile_indexes = set(self.TileIndexList)
+        re_probabilities = {tile_index : self.TileIndexList.count(tile_index)/len(self.TileIndexList) for tile_index in tile_indexes}
+        #assert sum(re_probabilities.values()) == 1, "Probabilities do not sum to 1"
+        return re_probabilities
 
     def max_score(self, verbose=False):
 

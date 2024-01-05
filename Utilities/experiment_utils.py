@@ -22,6 +22,7 @@ from plotly.subplots import make_subplots
 import matplotlib.pyplot as plt
 import colorsys
 from IPython.display import HTML
+from IPython.display import display
 
 class GamePlayer():
     def __init__(self, game_state, players) -> None:
@@ -793,6 +794,30 @@ def random_rollout(game_state, default_agent):
     logs_dict["final_state"] = rollout_state
     return logs_dict
 
+def heuristic_function_ttt(state, player): #test heuristic for tictactoe
+    if state.is_terminal:
+        to_return = state.reward[player]
+    else:
+        value = 0
+        if state.board[(1,1)] == player: value += 0.5
+        else: 
+            if state.board[(1,1)] is not None: value -= 0.25
+        if state.board[(0,0)] == player: value += 0.1
+        else:
+            if state.board[(0,0)] is not None: value -= 0.05
+        if state.board[(0,2)] == player: value += 0.1
+        else:
+            if state.board[(0,2)] is not None: value -= 0.05
+        if state.board[(2,0)] == player: value += 0.1
+        else:
+            if state.board[(0,2)] is not None: value -= 0.05
+        if state.board[(2,2)] == player: value += 0.1
+        else:
+            if state.board[(2,2)] is not None: value -= 0.05
+        to_return = value
+    assert to_return is not None, "Heuristic function returned None in state: " + str(state) + " and player: " + str(player)
+    return to_return
+
 #Visualisation
 def fo_tree_histogram(data_list, function, title, divisions, n_buckets = 100, subplot_titles=None, max_x_location = None, y_ref_value = None, only_leafs = False):
     """
@@ -1327,3 +1352,13 @@ def generate_color_palette(num_colors):
         hex_color = "#{:02x}{:02x}{:02x}".format(int(rgb[0]*255), int(rgb[1]*255), int(rgb[2]*255))
         palette.append(hex_color)
     return palette
+
+def display_color_palette(palette):
+    # Create a style string for each color in the palette
+    style_blocks = [f'<div style="width: 50px; height: 50px; display: inline-block; background: {color};"></div>' for color in palette]
+    
+    # Join the style blocks and wrap them in a div
+    display_html = '<div>' + ''.join(style_blocks) + '</div>'
+
+    # Display the HTML in the Jupyter Notebook
+    display(HTML(display_html))

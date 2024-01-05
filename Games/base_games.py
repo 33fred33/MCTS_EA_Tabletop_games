@@ -55,3 +55,4 @@ class BaseGameState(Protocol):
     #For random games:
     random_events:List #List[RandomEvent] -> listed in case they were sequencial
     def sample_random_event(self, event_type) -> RandomEvent: raise NotImplementedError #Samples a random event again, updating the game state and available_actions to accommodate it accordingly 
+    def random_event_probabilities(self, event_type) -> dict: raise NotImplementedError #outcome:probability

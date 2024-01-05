@@ -17,6 +17,7 @@ import Agents.siea_mcts2 as siea_mcts2
 import Agents.rea_mcts as rea_mcts
 import Games.function_optimisation as fo
 import Utilities.logs_management as lm
+import Agents.minimax as minimax
 
 start_time = time.time()
 
@@ -78,6 +79,11 @@ agents = agents + [siea_mcts.SIEA_MCTS_Player(max_iterations=its,
                                          logs=True) for its in [iterations]]
 """
 
+agents = agents + [minimax.Minimax(max_depth=2,
+                                   name = "Minimax_depth" + str(2),
+                                    logs=True)]
+
+"""
 for re_evaluation in [True, False]:
     for no_terminal_no_parent in [True, False]:
         for parallel_evolution in [True, False]:
@@ -93,7 +99,7 @@ for re_evaluation in [True, False]:
                                                         es_semantics_u = 0.5,
                                                         #name = "REA_MCTS_its" + str(its) + "_re_evaluation" + str(re_evaluation) + "_no_terminal_no_parent" + str(no_terminal_no_parent) + "_parallel_evolution" + str(parallel_evolution),
                                                         logs=True) for its in [iterations]]
-            
+"""
 #Run                          
 for function_index in function_indexes:
     print("In function " + str(function_index))
