@@ -488,7 +488,8 @@ def eaMuCommaLambdaCustom(MCTS_Player, turn, population, toolbox, mu, lambda_, n
     return population
 
 def semanticsDistance(original, new): #OK
-    return sum((np.absolute(np.subtract(original.semantics, new.semantics))/len(new.semantics)))
+    min_len = (min(len(original.semantics), len(new.semantics)))
+    return sum((np.absolute(np.subtract(original.semantics[:min_len], new.semantics[:min_len]))/len(new.semantics)))
 
 def selBestCustom(individuals, MCTS_Player, generation, turn, fit_attr="fitness"): #OK
     # initialize values to add to table
@@ -509,9 +510,9 @@ def selBestCustom(individuals, MCTS_Player, generation, turn, fit_attr="fitness"
     for i in individuals:
         Nodes += len(i)  # number of nodes in each individual
         # SSD between each new individual and sole parent
-        if len(i.semantics) == len(individuals[0].semantics):  
-            distance = round(semanticsDistance(individuals[0], i), 3)
-        else: distance = np.inf
+        #if len(i.semantics) == len(individuals[0].semantics):  
+        distance = round(semanticsDistance(individuals[0], i), 3)
+        #else: distance = np.inf
         i.SD = distance
         SSD += distance
         TotalDepth += i.height

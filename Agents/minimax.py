@@ -3,12 +3,19 @@ from Agents.base_agents import BaseAgent
 import pandas as pd
 import Utilities.logs_management as lm
 import numpy as np
+import time
+from Agents.vanilla_mcts import Node
 
+class Minimax_Node(Node):
+    def __init__(self, state=None, parent=None, edge_action=None, expansion_index=None, is_chance_node=False, random_event_type=None):
+        super().__init__(state, parent, edge_action, expansion_index, is_chance_node, random_event_type)
+        self.value = None
+        self.depth = None
 class Minimax(BaseAgent):
     
     player : int = 0
 
-    def __init__(self, heuristic_function=None, name="Minimax", logs = False, pruning = True, probing_factor = 1, move_ordering_function = None, max_depth = 1, star_L = 0, star_U = 1):
+    def __init__(self, heuristic_function=None, name="Minimax", logs = False, pruning = True, probing_factor = 1, move_ordering_function = None, max_depth = np.inf, star_L = 0, star_U = 1, max_time = np.inf, max_fm = np.inf):
         """
         
         star_L: lower bound for the *-minimax family of algorithms
@@ -25,6 +32,8 @@ class Minimax(BaseAgent):
         self.probing_factor = probing_factor #relevant for *-minimax family of algorithms
         self.move_ordering_function = move_ordering_function
         self.max_depth = max_depth
+        self.max_time = max_time
+        self.max_fm = max_fm
         self.star_L = star_L
         self.star_U = star_U
         if heuristic_function is None:
@@ -40,7 +49,14 @@ class Minimax(BaseAgent):
     def choose_action(self, state, verbose=False):
         #Finds immediate wins, and returns that action. Random otherwise.
         self.current_fm = 0
+        self.current_time = 0
+        self.start_time = time.time()
         self.player = state.player_turn
+
+        #create tree
+        self.nodes_count = 0
+        self.root_node = Minimax_Node(state=state, expansion_index=self.nodes_count)
+        self.nodes_count += 1
 
         #Print warnings
         if state.players == 2 and self.star_L == 0:
@@ -79,8 +95,8 @@ class Minimax(BaseAgent):
 
         return to_return
 
-    def minimax_search(self, depth = 0, state = None, alpha = -np.inf, beta = np.inf, expectimax=False, verbose=False):
-        if depth >= self.max_depth or state.is_terminal:
+    def minimax_search(self, depth = 0, state = None, alpha = -np.inf, beta = np.inf, node = None, expectimax=False, verbose=False):
+        if depth >= self.max_depth or state.is_terminal or self.stopping_criteria():
             return self.heuristic_function(state, self.player)
         if state.player_turn == self.player:
             max_value = -np.inf
@@ -93,7 +109,7 @@ class Minimax(BaseAgent):
                 else:
                     max_value = max(max_value, self.minimax_search(depth + 1, duplicate_state, alpha, beta))
                 alpha = max(alpha, max_value)
-                if self.pruning and alpha >= beta:
+                if self.pruning and alpha >= beta or self.stopping_criteria():
                     break
             return max_value
         else:
@@ -111,8 +127,15 @@ class Minimax(BaseAgent):
                     break
             return min_value
 
-    def expectimax_search(self, depth = 0, state = None, alpha = -np.inf, beta = np.inf, verbose=False):
-        if state.is_terminal or depth >= self.max_depth:
+    def stopping_criteria(self):
+        if self.current_fm >= self.max_fm:
+            return True
+        if self.current_time >= self.max_time:
+            return True
+        return False
+
+    def expectimax_search(self, depth = 0, state = None, alpha = -np.inf, beta = np.inf, node = None, verbose=False):
+        if state.is_terminal or depth >= self.max_depth or self.stopping_criteria():
             return self.heuristic_function(state, self.player)
         cumulative_score = 0
         random_event_probabilities = state.random_event_probabilities()
@@ -136,7 +159,8 @@ class Minimax(BaseAgent):
     def _update_choose_action_logs(self):
         data_dict = {
             "forward_model_calls": self.current_fm,
-            "playing_as": self.player
+            "playing_as": self.player,
+            "current_time": time.time() - self.start_time,
         }
         action_df = pd.DataFrame(data_dict, index=[0])
         action_df = pd.concat([action_df, self.agent_data()], axis=1)
@@ -148,6 +172,8 @@ class Minimax(BaseAgent):
                              "probing_factor":self.probing_factor, 
                              "pruning":self.pruning,
                              "max_depth":self.max_depth,
+                                "max_time":self.max_time,
+                                "max_fm":self.max_fm,
                                 "star_L":self.star_L,
                                 "star_U":self.star_U,
                                 "heuristic_function":self.heuristic_function.__name__,

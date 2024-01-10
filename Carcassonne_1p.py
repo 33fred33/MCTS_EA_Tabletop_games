@@ -42,7 +42,7 @@ import multiprocessing as mp
 
 #eamcts and sieamcts dont increase their iterations when they evolve
 
-def heuristic_function_virtual_score(state, player): #default for carcassonne
+def heuristic_virtual_score(state, player): #default for carcassonne
     if state.is_terminal:
         to_return = state.reward[player]
     else:
@@ -50,7 +50,7 @@ def heuristic_function_virtual_score(state, player): #default for carcassonne
     assert to_return is not None, "Heuristic function returned None in state: " + str(state) + " and player: " + str(player)
     return to_return
 
-def heuristic_function_score(state, player): #default for carcassonne
+def heuristic_score(state, player): #default for carcassonne
     if state.is_terminal:
         to_return = state.reward[player]
     else:
@@ -59,7 +59,7 @@ def heuristic_function_score(state, player): #default for carcassonne
     return to_return
 
 class ExperimentParser():
-    def __init__(self, seed=0, games=1, runs=1, iterations=10, c=math.sqrt(2), meeples=7, rollouts=1, random_events=0, file_path="", lock = None, agent="mcts", iteration_snapshots=10, minimax_max_depth=1, minimax_star_L=0, minimax_star_U=1, minimax_probing_factor=1, heuristic_function=heuristic_function_score, move_ordering_function=None, agent_name=None):
+    def __init__(self, seed=0, games=1, runs=1, iterations=10, c=math.sqrt(2), meeples=7, rollouts=1, random_events=0, file_path="", lock = None, agent="mcts", iteration_snapshots=10, minimax_max_depth=1, minimax_star_L=0, minimax_star_U=1, minimax_probing_factor=1, heuristic_function=heuristic_score, move_ordering_function=None, agent_name=None, move_time = np.inf):
         self.seed = seed
         self.games = games
         self.runs = runs
@@ -79,6 +79,7 @@ class ExperimentParser():
         self.heuristic_function = heuristic_function
         self.move_ordering_function = move_ordering_function
         self.agent_name = agent_name
+        self.move_time = move_time
 
 #Parse arguments
 parser = argparse.ArgumentParser(description='Run 1p Carcassone games')
@@ -109,11 +110,22 @@ def run_experiment(parser):
 
     #Create folder name
     this_file_path = parser.file_path
+    #added_name = parser.agent if parser.agent_name is None else parser.agent_name
     this_file_path += "_" + parser.agent
     this_file_path += "_m" + str(parser.meeples)
     if parser.agent == "mcts": this_file_path += "_c" + str(parser.c)
+    if parser.agent == "minimax":
+        this_file_path += "_d" + str(parser.minimax_max_depth)
+        this_file_path += "_L" + str(parser.minimax_star_L)
+        this_file_path += "_U" + str(parser.minimax_star_U)
+        this_file_path += "_pf" + str(parser.minimax_probing_factor)
+        this_file_path += "_hf" + parser.heuristic_function.__name__
     this_file_path += "_rand" + str(parser.random_events)
     this_file_path += "_it" + str(parser.iterations)
+    this_file_path += "_mt" + str(parser.move_time)
+
+    
+
 
     #Store parser's parameters
     parser_df = pd.DataFrame(parser.__dict__, index=[0])
@@ -145,6 +157,7 @@ def run_experiment(parser):
     #Create player
     if parser.agent == "mcts":
         players = [mcts.MCTS_Player(max_iterations =parser.iterations,
+                                    max_time = parser.move_time,
                                         c=parser.c,
                                         logs=True,
                                         logs_every_iterations = int(parser.iterations/parser.iteration_snapshots),
@@ -152,6 +165,7 @@ def run_experiment(parser):
                                         rollouts=parser.rollouts)]
     elif parser.agent == "eamcts":
         players = [siea_mcts.SIEA_MCTS_Player(max_iterations = parser.iterations,# - evolution_iterations, 
+                                              max_time = parser.move_time,
                                           logs = True,
                                         logs_every_iterations = int(parser.iterations/parser.iteration_snapshots),
                                         name = "EA_MCTS" if parser.agent_name is None else parser.agent_name,
@@ -163,6 +177,7 @@ def run_experiment(parser):
     elif parser.agent == "sieamcts":
         players = [siea_mcts.SIEA_MCTS_Player(max_iterations = parser.iterations,# - evolution_iterations, 
                                           logs = True,
+                                          max_time = parser.move_time,
                                         logs_every_iterations = int(parser.iterations/parser.iteration_snapshots),
                                         name = "SIEA_MCTS" if parser.agent_name is None else parser.agent_name,
                                           rollouts=parser.rollouts,
@@ -175,6 +190,7 @@ def run_experiment(parser):
     elif parser.agent == "eamcts2":
         players = [ea_mcts2.SIEA_MCTS_Player2(max_iterations = parser.iterations, 
                                           logs = True,
+                                            max_time = parser.move_time,
                                         logs_every_iterations = int(parser.iterations/parser.iteration_snapshots),
                                         name = "EA_MCTS2" if parser.agent_name is None else parser.agent_name,
                                         es_lambda = es_lambda,
@@ -213,7 +229,7 @@ def run_experiment(parser):
 
 if __name__ == "__main__":
     datetime_string = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    default_file_path = os.path.join("Outputs","Carcassonne_1p", "minitest",  datetime_string)  ##DONT FORGET TO CHANGE THIS
+    default_file_path = os.path.join("Outputs","Carcassonne_1p", "FINAL_15_SEC",  datetime_string)  ##DONT FORGET TO CHANGE THIS
     es_lambda = 4
     es_fitness_iterations = 30
     es_generations = 20
@@ -221,35 +237,38 @@ if __name__ == "__main__":
     parsers = []
     games = 30
     rd_seed = 10
-    iterations = 10000
+    iterations = 1000000
+    move_time = 15
+    #"""
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=1, rollouts=1, random_events=1, file_path=default_file_path, agent = "eamcts", move_time=move_time, agent_name="EA_MCTS_15")) #ok
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=3, rollouts=1, random_events=1, file_path=default_file_path,agent = "eamcts", move_time=move_time, agent_name="EA_MCTS_15")) #ok
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=1, rollouts=1, random_events=0, file_path=default_file_path ,agent = "eamcts" , move_time=move_time, agent_name="EA_MCTS_15")) #ok
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=3, rollouts=1, random_events=0, file_path=default_file_path ,agent = "eamcts" , move_time=move_time, agent_name="EA_MCTS_15")) #ok
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=1, rollouts=1, random_events=1, file_path=default_file_path, agent = "sieamcts", move_time=move_time, agent_name="SIEA_MCTS_15")) #ok
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=3, rollouts=1, random_events=1, file_path=default_file_path, agent = "sieamcts", move_time=move_time, agent_name="SIEA_MCTS_15")) #ok
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=1, rollouts=1, random_events=0, file_path=default_file_path ,agent = "sieamcts", move_time=move_time, agent_name="SIEA_MCTS_15")) #ok
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=3, rollouts=1, random_events=0, file_path=default_file_path ,agent = "sieamcts", move_time=move_time, agent_name="SIEA_MCTS_15")) #ok
+    #parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, c=0.5, meeples=1, rollouts=1, random_events=1, file_path=default_file_path ,agent = "mcts", move_time=move_time, agent_name="MCTS_c0.5_15")) #ok
+    #parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, c=0.5, meeples=3, rollouts=1, random_events=1, file_path=default_file_path ,agent = "mcts", move_time=move_time, agent_name="MCTS_c0.5_15")) #ok
+    #parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, c=0.5, meeples=1, rollouts=1, random_events=0, file_path=default_file_path ,agent = "mcts", move_time=move_time, agent_name="MCTS_c0.5_15")) #ok
+    #parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, c=0.5, meeples=3, rollouts=1, random_events=0, file_path=default_file_path ,agent = "mcts", move_time=move_time, agent_name="MCTS_c0.5_15")) #ok
+    #parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=1, rollouts=1, random_events=1, file_path=default_file_path ,agent = "mcts", move_time=move_time, agent_name="MCTS_c1.4142135623730951_15")) #ok
+    #parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=3, rollouts=1, random_events=1, file_path=default_file_path ,agent = "mcts", move_time=move_time, agent_name="MCTS_c1.4142135623730951_15")) #ok
+    #parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=1, rollouts=1, random_events=0, file_path=default_file_path ,agent = "mcts", move_time=move_time, agent_name="MCTS_c1.4142135623730951_15")) #ok
+    #parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=3, rollouts=1, random_events=0, file_path=default_file_path ,agent = "mcts", move_time=move_time, agent_name="MCTS_c1.4142135623730951_15")) #ok
+    #parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, c=3, meeples=1, rollouts=1, random_events=1, file_path=default_file_path ,agent = "mcts", move_time=move_time, agent_name="MCTS_c3_15")) #ok
+    #parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, c=3, meeples=3, rollouts=1, random_events=1, file_path=default_file_path ,agent = "mcts", move_time=move_time, agent_name="MCTS_c3_15")) #ok
+    #parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, c=3, meeples=1, rollouts=1, random_events=0, file_path=default_file_path ,agent = "mcts", move_time=move_time, agent_name="MCTS_c3_15")) #ok
+    #parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, c=3, meeples=3, rollouts=1, random_events=0, file_path=default_file_path ,agent = "mcts", move_time=move_time, agent_name="MCTS_c3_15")) #ok
     """
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=1, rollouts=1, random_events=1, file_path=default_file_path, agent = "eamcts")) #ok
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=3, rollouts=1, random_events=1, file_path=default_file_path,agent = "eamcts")) #ok
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=1, rollouts=1, random_events=0, file_path=default_file_path ,agent = "eamcts")) #ok
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=3, rollouts=1, random_events=0, file_path=default_file_path ,agent = "eamcts")) #ok
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=1, rollouts=1, random_events=1, file_path=default_file_path, agent = "sieamcts")) #ok
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=3, rollouts=1, random_events=1, file_path=default_file_path, agent = "sieamcts")) #ok
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=1, rollouts=1, random_events=0, file_path=default_file_path ,agent = "sieamcts")) #ok
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=3, rollouts=1, random_events=0, file_path=default_file_path ,agent = "sieamcts")) #ok
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, c=0.5, meeples=1, rollouts=1, random_events=1, file_path=default_file_path ,agent = "mcts")) #ok
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, c=0.5, meeples=3, rollouts=1, random_events=1, file_path=default_file_path ,agent = "mcts")) #ok
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, c=0.5, meeples=1, rollouts=1, random_events=0, file_path=default_file_path ,agent = "mcts")) #ok
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, c=0.5, meeples=3, rollouts=1, random_events=0, file_path=default_file_path ,agent = "mcts")) #ok
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=1, rollouts=1, random_events=1, file_path=default_file_path ,agent = "mcts")) #ok
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=3, rollouts=1, random_events=1, file_path=default_file_path ,agent = "mcts")) #ok
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=1, rollouts=1, random_events=0, file_path=default_file_path ,agent = "mcts")) #ok
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, meeples=3, rollouts=1, random_events=0, file_path=default_file_path ,agent = "mcts")) #ok
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, c=3, meeples=1, rollouts=1, random_events=1, file_path=default_file_path ,agent = "mcts")) #ok
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, c=3, meeples=3, rollouts=1, random_events=1, file_path=default_file_path ,agent = "mcts")) #ok
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, c=3, meeples=1, rollouts=1, random_events=0, file_path=default_file_path ,agent = "mcts")) #ok
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, iterations=iterations, c=3, meeples=3, rollouts=1, random_events=0, file_path=default_file_path ,agent = "mcts")) #ok
+    for ini_meeples in [1,3]:
+        for rand_events in [1, 0]:
+            parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, agent="minimax", minimax_max_depth=1, minimax_star_L=0, minimax_star_U=1, minimax_probing_factor=1, heuristic_function=heuristic_score, file_path=default_file_path, agent_name = "Minimax_1_s", meeples=ini_meeples, random_events=rand_events)) #ok
+            parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, agent="minimax", minimax_max_depth=2, minimax_star_L=0, minimax_star_U=1, minimax_probing_factor=1, heuristic_function=heuristic_score, file_path=default_file_path, agent_name = "Minimax_2_s", meeples=ini_meeples, random_events=rand_events)) #ok
+            parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, agent="minimax", minimax_max_depth=1, minimax_star_L=0, minimax_star_U=1, minimax_probing_factor=1, heuristic_function=heuristic_virtual_score,file_path=default_file_path, agent_name = "Minimax_1_vs", meeples=ini_meeples, random_events=rand_events)) #ok
+            parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, agent="minimax", minimax_max_depth=2, minimax_star_L=0, minimax_star_U=1, minimax_probing_factor=1, heuristic_function=heuristic_virtual_score,file_path=default_file_path, agent_name = "Minimax_2_vs", meeples=ini_meeples, random_events=rand_events)) #ok
+            parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, agent="random", file_path=default_file_path, meeples=ini_meeples, random_events=rand_events)) #ok
     """
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, agent="minimax", minimax_max_depth=1, minimax_star_L=0, minimax_star_U=1, minimax_probing_factor=1, heuristic_function=heuristic_function_score, file_path=default_file_path, agent_name = "Minimax_1_s")) #ok
-    #parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, agent="minimax", minimax_max_depth=2, minimax_star_L=0, minimax_star_U=1, minimax_probing_factor=1, heuristic_function=heuristic_function_score, file_path=default_file_path, agent_name = "Minimax_2_s")) #ok
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, agent="minimax", minimax_max_depth=1, minimax_star_L=0, minimax_star_U=1, minimax_probing_factor=1, heuristic_function=heuristic_function_virtual_score,file_path=default_file_path, agent_name = "Minimax_1_vs")) #ok
-    #parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, agent="minimax", minimax_max_depth=2, minimax_star_L=0, minimax_star_U=1, minimax_probing_factor=1, heuristic_function=heuristic_function_virtual_score,file_path=default_file_path, agent_name = "Minimax_2_vs")) #ok
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, runs=1, agent="random", file_path=default_file_path)) #ok
-    
 
     batch_size = 6
 

@@ -221,8 +221,12 @@ def ES_Search(RootNode, MCTS_Player):
         # from this point simulate the game 10 times appending the results
         results = []
         for i in range(es_fitness_iterations):
-            # copy the state
-            #stateCopy = RootNode.state.duplicate()
+            
+            #Stop evolution
+            if mcts_player.stopping_criteria():
+                individual.semantics = sorted(results)
+                return 0,
+
             node = RootNode
             
             """
@@ -385,7 +389,8 @@ def eaMuCommaLambdaCustom(MCTS_Player, turn, population, toolbox, mu, lambda_, n
     return population
 
 def semanticsDistance(original, new): #OK
-    return sum((np.absolute(np.subtract(original.semantics, new.semantics))/len(new.semantics)))
+    min_len = (min(len(original.semantics), len(new.semantics)))
+    return sum((np.absolute(np.subtract(original.semantics[:min_len], new.semantics[:min_len]))/len(new.semantics)))
 
 def selBestCustom(individuals, MCTS_Player, generation, turn, fit_attr="fitness"): #OK
     # initialize values to add to table
@@ -405,8 +410,9 @@ def selBestCustom(individuals, MCTS_Player, generation, turn, fit_attr="fitness"
     #print("Calculating SD and depth")
     for i in individuals:
         Nodes += len(i)  # number of nodes in each individual
-        # SSD between each new individual and sole parent
+        # SSD between each new individual and sole parent 
         distance = round(semanticsDistance(individuals[0], i), 3)
+        
         i.SD = distance
         SSD += distance
         TotalDepth += i.height

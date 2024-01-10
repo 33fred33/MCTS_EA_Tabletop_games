@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 import colorsys
 from IPython.display import HTML
 from IPython.display import display
+from PIL import Image
 
 class GamePlayer():
     def __init__(self, game_state, players) -> None:
@@ -1362,3 +1363,17 @@ def display_color_palette(palette):
 
     # Display the HTML in the Jupyter Notebook
     display(HTML(display_html))
+
+def convert_to_grayscale(image_path):
+    assert os.path.isfile(image_path), "Invalid image path: not found"
+    assert image_path.endswith('.png'), "Invalid image format: must be .png"
+    # Open the image file
+    with Image.open(image_path) as img:
+        # Convert the image to grayscale
+        grayscale_img = img.convert("L")
+
+        # Save the grayscale image
+        grayscale_img_path = image_path.replace('.png', '_grayscale.png')
+        grayscale_img.save(grayscale_img_path)
+
+        return grayscale_img_path
