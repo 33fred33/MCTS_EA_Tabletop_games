@@ -97,11 +97,12 @@ class SIEA_MCTS_Player(vmcts.MCTS_Player):
         self.isAIPlayer = True
 
         if name is None:
-            self.name = "REA_MCTS__"
-            self.name = self.name + "PE_" + str(self.parallel_evolution) + "__"
-            #self.name = self.name + "PA_" + str(self.partial_evolution) + "__"
-            self.name = self.name + "NP_" + str(self.no_terminal_no_parent) + "__"
-            self.name = self.name + "RE_" + str(self.re_evaluation)
+            self.name = "REA_MCTS_"
+            self.name = self.name + "PE_" + str(self.parallel_evolution) + "_"
+            #self.name = self.name + "PA_" + str(self.partial_evolution) + "_"
+            self.name = self.name + "NP_" + str(self.no_terminal_no_parent) + "_"
+            self.name = self.name + "RE_" + str(self.re_evaluation) + "_"
+            self.name = self.name + "SM_" + str(self.use_semantics)
 
     def choose_action(self, state):
         self.evolution_logs = pd.DataFrame()

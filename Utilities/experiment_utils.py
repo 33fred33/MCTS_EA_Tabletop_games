@@ -394,8 +394,12 @@ def evolved_formula_analysis(data):
    output["Avg_depth_" + terminal] = np.mean(data["evolved_formula_depth"])
    output["Std_depth_" + terminal] = np.std(data["evolved_formula_depth"])
 
-   output["More_than_10"] = len(data.loc[data["agent_expanded_nodes"] >= 0.1*data["max_iterations"]])/len(data)
-   output["More_than_50"] = len(data.loc[data["agent_expanded_nodes"] >= 0.5*data["max_iterations"]])/len(data)
+   if "agent_expanded_nodes" in data.columns:
+        output["More_than_10"] = len(data.loc[data["agent_expanded_nodes"] >= 0.1*data["max_iterations"]])/len(data)
+        output["More_than_50"] = len(data.loc[data["agent_expanded_nodes"] >= 0.5*data["max_iterations"]])/len(data)
+   else:
+        output["More_than_10"] = np.nan
+        output["More_than_50"] = np.nan
    output["Less_than_4_nodes_formula"] = len(data.loc[data["evolved_formula_nodes"] < 4])/len(data)
    
 
