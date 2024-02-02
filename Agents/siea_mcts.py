@@ -326,7 +326,7 @@ def ES_Search(RootNode, MCTS_Player):
         #MCTS_Player.choose_action_logs = pd.concat([MCTS_Player.choose_action_logs, pd.DataFrame(data, index=[0])], axis=1)
         MCTS_Player.final_evolution_data = pd.DataFrame(data, index=[0])
         
-        print(f'Chosen formula: {formula}')
+        #print(f'Chosen formula: {formula}')
         return toolbox.compile(expr=hof[0])
         #return toolbox.compile(UCT_GP_Tree)
 

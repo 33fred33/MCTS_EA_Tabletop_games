@@ -83,7 +83,7 @@ class CarcassonneState:
             ]
         
         self.deck = self.TileIndexList.copy()
-        if self.set_tile_sequence:
+        if self.set_tile_sequence_seed is not None:
             rd.seed(self.set_tile_sequence_seed)
         rd.shuffle(self.deck)  # shuffle the deck
         

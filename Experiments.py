@@ -59,12 +59,11 @@ if __name__ == "__main__":
     evolution_iterations = es_fitness_iterations*es_generations*es_lambda + es_fitness_iterations
 
     #Agents
-    """
     agents = [mcts.MCTS_Player(max_iterations=iterations, 
                             logs=True, 
                             c=c, 
                             name = "MCTS_c" + c_names[i]) for i,c in enumerate(c_list)]
-
+    """
 
     agents = agents + [siea_mcts2.SIEA_MCTS_Player2(max_iterations=its,
                                             es_lambda=es_lambda, 
@@ -93,7 +92,7 @@ if __name__ == "__main__":
                                             es_semantics_u = 0.5,
                                             name = "EA_MCTS_its" + str(its),
                                             logs=True) for its in [iterations]]
-    """
+    
 
     for re_evaluation in [True, False]:
         for no_terminal_no_parent in [True, False]:
@@ -112,6 +111,7 @@ if __name__ == "__main__":
                                                         #name = "REA_MCTS_" + "_RE_" + str(re_evaluation) + "_NP_" + str(no_terminal_no_parent) + "_PE_" + str(parallel_evolution) + "_SM_" + str(semantics),	
                                                         logs=True) for its in [iterations]]
 
+    """
     #Multiprocess run  
     lock = mp.Lock()
     assert mp.cpu_count() >= len(function_indexes), "Not enough cores to run experiments by function"
