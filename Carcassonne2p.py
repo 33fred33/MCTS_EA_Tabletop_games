@@ -178,14 +178,22 @@ if __name__ == "__main__":
     iterations = 5000
     #move_time = 15
 
+    include_pt = False
     #define parsers
     #file_name should be unique for each job
     #parser for parameter tuning
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mctsc0_5_random", agent1="mcts", agent2="random", logs1=True, logs2=True, file_path=default_file_path, c1=0.5))
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mctsc1_0_random", agent1="mcts", agent2="random", logs1=True, logs2=True, file_path=default_file_path, c1=1.0))
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mctsc1_41_random", agent1="mcts", agent2="random", logs1=True, logs2=True, file_path=default_file_path, c1=math.sqrt(2)))
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mctsc2_0_random", agent1="mcts", agent2="random", logs1=True, logs2=True, file_path=default_file_path, c1=2.0))
-    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mcts_3_0_random", agent1="mcts", agent2="random", logs1=True, logs2=True, file_path=default_file_path, c1=3.0))
+    if include_pt:
+        parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mctsc0_5_random", agent1="mcts", agent2="random", logs1=True, logs2=True, file_path=default_file_path, c1=0.5))
+        parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mctsc1_0_random", agent1="mcts", agent2="random", logs1=True, logs2=True, file_path=default_file_path, c1=1.0))
+        parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mctsc1_41_random", agent1="mcts", agent2="random", logs1=True, logs2=True, file_path=default_file_path, c1=math.sqrt(2)))
+        parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mctsc2_0_random", agent1="mcts", agent2="random", logs1=True, logs2=True, file_path=default_file_path, c1=2.0))
+        parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mcts_3_0_random", agent1="mcts", agent2="random", logs1=True, logs2=True, file_path=default_file_path, c1=3.0))
+
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mcts_eamcts", agent1="mcts", agent2="eamcts", logs1=True, logs2=True, file_path=default_file_path, c1=0.5))
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mcts_sieamcts", agent1="mcts", agent2="sieamcts", logs1=True, logs2=True, file_path=default_file_path, c1=0.5))
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="eamcts_sieamcts", agent1="eamcts", agent2="sieamcts", logs1=True, logs2=True, file_path=default_file_path))
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="eamcts_random", agent1="eamcts", agent2="random", logs1=True, logs2=True, file_path=default_file_path))
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="sieamcts_random", agent1="sieamcts", agent2="random", logs1=True, logs2=True, file_path=default_file_path))
     #parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mcts_eamcts", agent1="mcts", agent2="eamcts", logs1=True, logs2=True, file_path=default_file_path))
     #parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mcts_sieamcts", agent1="mcts", agent2="sieamcts", logs1=True, logs2=True, file_path=default_file_path))
     batch_size = 6
