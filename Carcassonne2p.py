@@ -179,6 +179,7 @@ if __name__ == "__main__":
     #move_time = 15
 
     include_pt = False
+    include_rr = False
     #define parsers
     #file_name should be unique for each job
     #parser for parameter tuning
@@ -187,15 +188,39 @@ if __name__ == "__main__":
         parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mctsc1_0_random", agent1="mcts", agent2="random", logs1=True, logs2=True, file_path=default_file_path, c1=1.0))
         parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mctsc1_41_random", agent1="mcts", agent2="random", logs1=True, logs2=True, file_path=default_file_path, c1=math.sqrt(2)))
         parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mctsc2_0_random", agent1="mcts", agent2="random", logs1=True, logs2=True, file_path=default_file_path, c1=2.0))
-        parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mcts_3_0_random", agent1="mcts", agent2="random", logs1=True, logs2=True, file_path=default_file_path, c1=3.0))
+        parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mctsc3_0_random", agent1="mcts", agent2="random", logs1=True, logs2=True, file_path=default_file_path, c1=3.0))
 
+    """
+    #parser for 2 mcts
     parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mcts_eamcts", agent1="mcts", agent2="eamcts", logs1=True, logs2=True, file_path=default_file_path, c1=0.5))
     parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mcts_sieamcts", agent1="mcts", agent2="sieamcts", logs1=True, logs2=True, file_path=default_file_path, c1=0.5))
     parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="eamcts_sieamcts", agent1="eamcts", agent2="sieamcts", logs1=True, logs2=True, file_path=default_file_path))
     parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="eamcts_random", agent1="eamcts", agent2="random", logs1=True, logs2=True, file_path=default_file_path))
     parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="sieamcts_random", agent1="sieamcts", agent2="random", logs1=True, logs2=True, file_path=default_file_path))
-    #parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mcts_eamcts", agent1="mcts", agent2="eamcts", logs1=True, logs2=True, file_path=default_file_path))
-    #parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mcts_sieamcts", agent1="mcts", agent2="sieamcts", logs1=True, logs2=True, file_path=default_file_path))
+
+    #parser for minimax
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="minimax2s_mctsc0_5", agent1="minimax", agent2="mcts", logs1=True, logs2=True, file_path=default_file_path, minimax_max_depth1=2, c2=0.5, heuristic_function1=heuristic_score, name1 = "Expectimax_2_s"))
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="minimax2s_eamcts", agent1="minimax", agent2="eamcts", logs1=True, logs2=True, file_path=default_file_path, minimax_max_depth1=2, heuristic_function1=heuristic_score, name1 = "Expectimax_2_s"))
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="minimax2s_sieamcts", agent1="minimax", agent2="sieamcts", logs1=True, logs2=True, file_path=default_file_path, minimax_max_depth1=2, heuristic_function1=heuristic_score, name1 = "Expectimax_2_s"))
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="minimax2vs_mctsc0_5", agent1="minimax", agent2="mcts", logs1=True, logs2=True, file_path=default_file_path, minimax_max_depth1=2, c2=0.5, heuristic_function1=heuristic_virtual_score, name1 = "Expectimax_2_vs"))
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="minimax2vs_eamcts", agent1="minimax", agent2="eamcts", logs1=True, logs2=True, file_path=default_file_path, minimax_max_depth1=2, heuristic_function1=heuristic_virtual_score, name1 = "Expectimax_2_vs"))
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="minimax2vs_sieamcts", agent1="minimax", agent2="sieamcts", logs1=True, logs2=True, file_path=default_file_path, minimax_max_depth1=2, heuristic_function1=heuristic_virtual_score, name1 = "Expectimax_2_vs"))
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="minimax2s_random", agent1="minimax", agent2="random", logs1=True, logs2=True, file_path=default_file_path, minimax_max_depth1=2, heuristic_function1=heuristic_score, name1 = "Expectimax_2_s"))
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="minimax2vs_random", agent1="minimax", agent2="random", logs1=True, logs2=True, file_path=default_file_path, minimax_max_depth1=2, heuristic_function1=heuristic_virtual_score, name1 = "Expectimax_2_vs"))
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="minimax2s_minimax2vs", agent1="minimax", agent2="minimax", logs1=True, logs2=True, file_path=default_file_path, minimax_max_depth1=2, minimax_max_depth2=2, heuristic_function1=heuristic_score, heuristic_function2=heuristic_virtual_score, name1 = "Expectimax_2_s", name2 = "Expectimax_2_vs"))
+    """
+    if include_rr:
+        for ic,c1 in enumerate([0.5, 1.0, math.sqrt(2), 2.0, 3.0]):
+            for ic2,c2 in enumerate([0.5, 1.0, math.sqrt(2), 2.0, 3.0]):
+                if ic<ic2:
+                    parsers.append(ExperimentParser(seed=rd_seed, games=10, iterations1=5000, iterations2=5000, file_folder="mctsc" + str(c1) + "_mctsc" + str(c2), agent1="mcts", agent2="mcts", logs1=True, logs2=True, file_path=default_file_path, c1=c1, c2=c2))
+
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mctsc1_mctsc0_5", agent1="mcts", agent2="mcts", logs1=True, logs2=True, file_path=default_file_path, c1=1, c2=0.5))
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mctsc1_eamcts", agent1="mcts", agent2="eamcts", logs1=True, logs2=True, file_path=default_file_path, c1=1))
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mctsc1_sieamcts", agent1="mcts", agent2="sieamcts", logs1=True, logs2=True, file_path=default_file_path, c1=1))
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="minimax2s_mctsc1", agent1="minimax", agent2="mcts", logs1=True, logs2=True, file_path=default_file_path, minimax_max_depth1=2, c2=1, heuristic_function1=heuristic_score, name1 = "Expectimax_2_s"))
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="minimax2vs_mctsc1", agent1="minimax", agent2="mcts", logs1=True, logs2=True, file_path=default_file_path, minimax_max_depth1=2, c2=1, heuristic_function1=heuristic_virtual_score, name1 = "Expectimax_2_vs"))
+
     batch_size = 6
     for i in range(math.ceil(len(parsers)/batch_size)):
 

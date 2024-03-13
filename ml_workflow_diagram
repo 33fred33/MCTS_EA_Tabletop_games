@@ -1,0 +1,8 @@
+// ML Workflow
+digraph {
+	A [label="Data Preprocessing"]
+	B [label=Bootstrapping]
+	C [label="Random Forests with Grid Search"]
+	A -> B [label="step 1"]
+	B -> C [label="step 2"]
+}
