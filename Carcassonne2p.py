@@ -59,7 +59,7 @@ def heuristic_score(state, player): #default for carcassonne
     return to_return
 
 class ExperimentParser():
-    def __init__(self, file_folder, file_path="", lock=None, seed=0, games=1, runs=1, iterations1=10, iterations2 = 10, max_time1 = np.inf, max_time2 = np.inf, name1=None, name2=None, logs1=True, logs2=True, c1=math.sqrt(2), c2=math.sqrt(2), rollouts1=1, rollouts2=1, agent1="mcts", agent2="random", minimax_max_depth1=1, minimax_max_depth2=1, minimax_star_L1=0, minimax_star_L2=0, minimax_star_U1=1, minimax_star_U2=1, minimax_probing_factor1=1, minimax_probing_factor2=1, heuristic_function1=heuristic_score, heuristic_function2=heuristic_score, move_ordering_function1=None, move_ordering_function2=None):
+    def __init__(self, file_folder, file_path="", lock=None, seed=0, games=1, runs=1, iterations1=10, iterations2 = 10, max_time1 = np.inf, max_time2 = np.inf, name1=None, name2=None, logs1=True, logs2=True, c1=math.sqrt(2), c2=math.sqrt(2), rollouts1=1, rollouts2=1, agent1="mcts", agent2="random", minimax_max_depth1=1, minimax_max_depth2=1, minimax_star_L1=0, minimax_star_L2=0, minimax_star_U1=1, minimax_star_U2=1, minimax_probing_factor1=1, minimax_probing_factor2=1, heuristic_function1=heuristic_score, heuristic_function2=heuristic_score, move_ordering_function1=None, move_ordering_function2=None, reward_type_1="R2", reward_type_2="R2"):
         #agent1 parameters
         self.agents = [agent1,agent2]
         self.iterations = [iterations1,iterations2]
@@ -82,6 +82,7 @@ class ExperimentParser():
         self.file_path = file_path
         self.file_folder = file_folder
         self.lock = lock
+        self.reward_type = [reward_type_1, reward_type_2]
         
         
 
@@ -119,6 +120,7 @@ def run_experiment(parser):
         if agent_name == "mcts":
             players[agent_index] = mcts.MCTS_Player(max_iterations = parser.iterations[agent_index],
                                         max_time = parser.max_times[agent_index],
+                                        reward_type=parser.reward_type[agent_index],
                                             c=parser.c[agent_index],
                                             logs=parser.agent_logs[agent_index],
                                             name = "MCTS_c" + str(parser.c[agent_index]) if parser.names[agent_index] is None else parser.names[agent_index],
@@ -127,6 +129,7 @@ def run_experiment(parser):
         elif agent_name == "eamcts":
             players[agent_index] = siea_mcts.SIEA_MCTS_Player(max_iterations = parser.iterations[agent_index], 
                                                 max_time = parser.max_times[agent_index],
+                                                reward_type=parser.reward_type[agent_index],
                                             logs = parser.agent_logs[agent_index],
                                             name = "EA_MCTS" if parser.names[agent_index] is None else parser.names[agent_index],
                                             rollouts=parser.rollouts[agent_index],
@@ -137,6 +140,7 @@ def run_experiment(parser):
         elif agent_name == "sieamcts":
             players[agent_index] = siea_mcts.SIEA_MCTS_Player(max_iterations = parser.iterations[agent_index], 
                                                 max_time = parser.max_times[agent_index],
+                                                reward_type=parser.reward_type[agent_index],
                                             logs = parser.agent_logs[agent_index],
                                             name = "SIEA_MCTS" if parser.names[agent_index] is None else parser.names[agent_index],
                                             rollouts=parser.rollouts[agent_index],
@@ -167,15 +171,15 @@ def run_experiment(parser):
     
 if __name__ == "__main__":
     datetime_string = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    default_file_path = os.path.join("Outputs","Carcassonne_2p", "Parameter_tuning")# datetime_string)  ##DONT FORGET TO CHANGE THIS
+    default_file_path = os.path.join("Outputs","Carcassonne_2p", "Reward_type_test")# datetime_string)  ##DONT FORGET TO CHANGE THIS
     es_lambda = 4
     es_fitness_iterations = 30
     es_generations = 20
     evolution_iterations = es_fitness_iterations*es_generations*es_lambda + es_fitness_iterations
     parsers = []
-    games = 20
+    games = 10
     rd_seed = 0
-    iterations = 5000
+    iterations = 1000
     #move_time = 15
 
     include_pt = False
@@ -214,12 +218,15 @@ if __name__ == "__main__":
             for ic2,c2 in enumerate([0.5, 1.0, math.sqrt(2), 2.0, 3.0]):
                 if ic<ic2:
                     parsers.append(ExperimentParser(seed=rd_seed, games=10, iterations1=5000, iterations2=5000, file_folder="mctsc" + str(c1) + "_mctsc" + str(c2), agent1="mcts", agent2="mcts", logs1=True, logs2=True, file_path=default_file_path, c1=c1, c2=c2))
-
+    """
     parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mctsc1_mctsc0_5", agent1="mcts", agent2="mcts", logs1=True, logs2=True, file_path=default_file_path, c1=1, c2=0.5))
     parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mctsc1_eamcts", agent1="mcts", agent2="eamcts", logs1=True, logs2=True, file_path=default_file_path, c1=1))
     parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mctsc1_sieamcts", agent1="mcts", agent2="sieamcts", logs1=True, logs2=True, file_path=default_file_path, c1=1))
     parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="minimax2s_mctsc1", agent1="minimax", agent2="mcts", logs1=True, logs2=True, file_path=default_file_path, minimax_max_depth1=2, c2=1, heuristic_function1=heuristic_score, name1 = "Expectimax_2_s"))
     parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="minimax2vs_mctsc1", agent1="minimax", agent2="mcts", logs1=True, logs2=True, file_path=default_file_path, minimax_max_depth1=2, c2=1, heuristic_function1=heuristic_virtual_score, name1 = "Expectimax_2_vs"))
+    """
+
+    parsers.append(ExperimentParser(seed=rd_seed, games=games, iterations1=iterations, iterations2=iterations, file_folder="mcts_r1_mcts_r2", agent1="mcts", agent2="mcts", logs1=True, logs2=True, file_path=default_file_path, c1=0.5,c2=0.5, reward_type_1="R1", reward_type_2="R2", name1="mcts_R1", name2="mcts_R2"))
 
     batch_size = 6
     for i in range(math.ceil(len(parsers)/batch_size)):

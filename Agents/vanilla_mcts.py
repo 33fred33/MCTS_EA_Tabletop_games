@@ -178,7 +178,8 @@ class MCTS_Player(BaseAgent):
     root_node : Node
     player : int
 
-    def __init__(self, rollouts=1, c=math.sqrt(2), max_fm=np.inf, max_time=np.inf, max_iterations=np.inf, default_policy = RandomPlayer(), name = "Vanilla_MCTS", logs = False, logs_every_iterations = None):
+    def __init__(self, rollouts=1, c=math.sqrt(2), max_fm=np.inf, max_time=np.inf, max_iterations=np.inf, default_policy = RandomPlayer(), name = "Vanilla_MCTS", logs = False, logs_every_iterations = None, reward_type = "R2"):
+        """Reward types: R1: 1 win, 0 draw, -1 loss, R2: game reward attribute"""
         assert max_fm != np.inf or max_time != np.inf or max_iterations != np.inf, "At least one of the stopping criteria must be set"
         self.rollouts = rollouts
         self.c = c
@@ -195,6 +196,7 @@ class MCTS_Player(BaseAgent):
         self.choose_action_logs = pd.DataFrame()
         self.isAIPlayer = True
         self.logs_every_iterations = logs_every_iterations
+        self.reward_type = reward_type
 
     def choose_action(self, state):
 
@@ -365,7 +367,7 @@ class MCTS_Player(BaseAgent):
                 past_state = node.parent.state.duplicate()
                 past_state.make_action(node.edge_action)
                 node.state = past_state
-            return node.state.reward[self.player]
+            return self.get_reward(node.state)
 
         #Execute simulations
         reward = 0
@@ -374,7 +376,7 @@ class MCTS_Player(BaseAgent):
             while not state.is_terminal:
                 state.make_action(default_policy.choose_action(state))
                 self.current_fm = self.current_fm + 1
-            reward = reward + state.reward[self.player]
+            reward = reward + self.get_reward(state)
         average_reward = reward / self.rollouts
         return average_reward
 
@@ -421,6 +423,16 @@ class MCTS_Player(BaseAgent):
     def set_tree(self, node):
         self.root_node = node
         self.nodes_count = len(self.root_node.subtree_nodes())
+
+    def get_reward(self, state):
+        if self.reward_type == "R1":
+            if state.winner is None: return 0
+            if state.winner == self.player: return 1
+            if state.winner != self.player: return -1
+        elif self.reward_type == "R2":
+            return state.reward[self.player]
+        print("Warning: reward type not found. Returning 0")
+        return 0
 
     def stopping_criteria(self):
         current_time = time.time() - self.start_time
